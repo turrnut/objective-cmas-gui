@@ -12,11 +12,11 @@
 		D9264C203051870200D503F0 /* SIMASCommandLine.m in Sources */ = {isa = PBXBuildFile; fileRef = D9264C1F3051870200D503F0 /* SIMASCommandLine.m */; };
 		D9264C223051872A00D503F0 /* SIMASList.m in Sources */ = {isa = PBXBuildFile; fileRef = D9264C1A304E377000D503F0 /* SIMASList.m */; };
 		D9264C353051915700D503F0 /* libsimas_runtime.a in Frameworks */ = {isa = PBXBuildFile; fileRef = D9264C2B3051914B00D503F0 /* libsimas_runtime.a */; };
-		D9264C363051916200D503F0 /* SIMASVariable.h in Headers */ = {isa = PBXBuildFile; fileRef = D9264BE8304D534C00D503F0 /* SIMASVariable.h */; };
+		D9264C363051916200D503F0 /* SIMASVariable.h in Headers */ = {isa = PBXBuildFile; fileRef = D9264BE8304D534C00D503F0 /* SIMASVariable.h */; settings = {ATTRIBUTES = (Public, ); }; };
 		D9264C373051916200D503F0 /* SIMASVariable.m in Sources */ = {isa = PBXBuildFile; fileRef = D9264BE9304D534C00D503F0 /* SIMASVariable.m */; };
-		D9264C383051916200D503F0 /* SIMASRuntime.h in Headers */ = {isa = PBXBuildFile; fileRef = D9264BF1304D594800D503F0 /* SIMASRuntime.h */; };
+		D9264C383051916200D503F0 /* SIMASRuntime.h in Headers */ = {isa = PBXBuildFile; fileRef = D9264BF1304D594800D503F0 /* SIMASRuntime.h */; settings = {ATTRIBUTES = (Public, ); }; };
 		D9264C393051916200D503F0 /* SIMASRuntime.m in Sources */ = {isa = PBXBuildFile; fileRef = D9264BF2304D594800D503F0 /* SIMASRuntime.m */; };
-		D9264C3A3051916200D503F0 /* SIMASFunction.h in Headers */ = {isa = PBXBuildFile; fileRef = D9264BF4304E05FA00D503F0 /* SIMASFunction.h */; };
+		D9264C3A3051916200D503F0 /* SIMASFunction.h in Headers */ = {isa = PBXBuildFile; fileRef = D9264BF4304E05FA00D503F0 /* SIMASFunction.h */; settings = {ATTRIBUTES = (Public, ); }; };
 		D9264C3B3051916200D503F0 /* SIMASFunction.m in Sources */ = {isa = PBXBuildFile; fileRef = D9264BF5304E05FA00D503F0 /* SIMASFunction.m */; };
 /* End PBXBuildFile section */
 
