@@ -416,7 +416,7 @@ static SIMASRuntime** theRealRuntime() { // secret scary illegal functionality n
 
 + (SIMASRuntime*)runtime {
     SIMASRuntime* runtime = *theRealRuntime();
-    if (!runtime) runtime = [SIMASRuntime new];
+    if (!runtime) runtime = [self new];
     return runtime;
 }
 
