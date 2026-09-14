@@ -88,7 +88,7 @@ SIMASFUNC(appv) {
     SIMASList *target = boilerplate(args);
     if (!target) return;
     for (int i = 2; i < [args count]; i++) {
-        SIMASData *var = [args objectAtIndex:i];
+        SIMASData *var = [SIMASGETVARIABLEWITHARGUMENT(i) data];
         if (!var) { [SIMASRuntime throwException:@"NonexistentVariable" withReason:[NSString stringWithFormat:@"Variable %@ does not exist, and the function which you are using it from does not implicitly create variables.", [args objectAtIndex:i]]]; return; }
         [target appendObject:[var copy]];
     }
