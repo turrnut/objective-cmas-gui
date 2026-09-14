@@ -85,23 +85,21 @@ NSArray *tokeniseStringExcludingQuotes(NSString* str, NSCharacterSet* charSet) {
     }
     [objects release];
     objects = [NSMutableArray new];
-    index = 0;
-    while ([quoted count]) {
-        NSString *string = [[quoted objectAtIndex:0] retain];
-        [quoted removeObjectAtIndex:0];
-        if (!quoteIndexes[index++]) {
+    for (int i = 0; i < [quoted count]; i++) {
+        NSString *string = [quoted objectAtIndex:i];
+        if (!quoteIndexes[i]) {
             NSMutableArray *sliced = [[string componentsSeparatedByCharactersInSet:charSet] mutableCopy];
-            for (int i = 0; i < [sliced count]; i++) {
-                [sliced replaceObjectAtIndex:i withObject:[[sliced objectAtIndex:i] stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceCharacterSet]]];
-                if ([[sliced objectAtIndex:i] length] < 1) [sliced removeObjectAtIndex:i--];
+            for (int ii = 0; ii < [sliced count]; ii++) {
+                [sliced replaceObjectAtIndex:ii withObject:[[sliced objectAtIndex:ii] stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceCharacterSet]]];
+                if ([[sliced objectAtIndex:ii] length] < 1) [sliced removeObjectAtIndex:ii--];
             }
             if ([sliced count]) [objects addObjectsFromArray:sliced];
             [sliced release];
         } else {
             [objects addObject:string];
         }
-        [string release];
     }
+    [quoted release];
     free(quoteIndexes);
     return [objects autorelease];
 }
@@ -237,7 +235,7 @@ NSArray *tokeniseStringExcludingQuotes(NSString* str, NSCharacterSet* charSet) {
         NSMutableCharacterSet *characters = [NSMutableCharacterSet whitespaceAndNewlineCharacterSet];
         [characters addCharactersInString:@";"];
         NSString *str = [[[instructionStrings objectAtIndex:0] stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceAndNewlineCharacterSet]] stringByAppendingString:@";"];
-        if ([str length] && [str characterAtIndex:0] == '@') { [pool release]; continue; }
+        if ([str length] && [str characterAtIndex:0] == '@') { [instructionStrings removeObjectAtIndex:0]; [pool release]; continue; }
         NSArray *tokenised = tokeniseStringExcludingQuotes(str, characters);
         if ([tokenised count] && [[tokenised objectAtIndex:0] length])[tokens addObject:tokenised];
         [instructionStrings removeObjectAtIndex:0];
