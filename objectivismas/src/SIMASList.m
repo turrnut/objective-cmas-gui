@@ -302,7 +302,7 @@ SIMASFUNC(makeAlias) {
         [string appendString:[[[args objectAtIndex:0] class] name]];
         [string appendString:@","];
         if (isString) [string appendString:@"\""];
-        [string appendString:(isString ? unformatEscapes([[args objectAtIndex:0] toString]) : [[args objectAtIndex:0] toString])];
+        [string appendString:[[args objectAtIndex:0] toString]];
         if (isString) [string appendString:@"\""];
         [args removeObjectAtIndex:0];
         if ([args count]) [string appendString:@","];

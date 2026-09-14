@@ -63,10 +63,10 @@ NSArray *tokeniseStringExcludingQuotes(NSString* str, NSCharacterSet* charSet) {
         if (![string length] && [objects count] && isInQuotes) {
             quoteIndexes[index] = 1;
             [objects removeObjectAtIndex:0];
-        } else {
+        } else if (isInQuotes) {
             while ([objects count]) {
                 isEvenBackslashes = !((backSlashes = countBackslashes(string)) % 2);
-                quoteIndexes[index] = isInQuotes;
+                quoteIndexes[index] = 1;
                 if (!isEvenBackslashes && backSlashes) {
                     [string appendString:@"\""];
                     [string appendString:[objects objectAtIndex:0]];
@@ -75,8 +75,6 @@ NSArray *tokeniseStringExcludingQuotes(NSString* str, NSCharacterSet* charSet) {
                 }
                 break;
             }
-            
-            isInQuotes = NO;
         }
         isInQuotes = !isInQuotes;
         [quoted addObject:string];
