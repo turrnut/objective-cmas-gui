@@ -12,6 +12,6 @@ First, you need to create a library that conforms to the `SIMASLibrary` protocol
 Then, in your implementation, you can define any `SIMASFUNC(name)` functions, or pass in Objective-C methods as operators (use the macros, they're helpful). <br>
 To register types, use `[(your type class) registerToRuntime]`, to register instructions use `[[SIMASRuntime runtime] registerOperation:(operation variable) withName:(the name of your instruction) withPrefix:(the passed prefix)]`. <br>
 If you have any library dependencies you want loaded in, you can use `[[SIMASRuntime runtime] loadLibrary:(the bundle of the library) withPrefix:(that library's prefix)]` to load it in for you. <br>
-Then, all you need to do is compile your class into a .bundle, linking against the SIMAS runtime, and you're done!
+Then, all you need to do is compile your class into a .bundle (make sure to set your code to use dynamic symbol lookup so there's not duplicate symbols!) and you're done!
 
 A good example of a library would be `SIMASList`, where you could completely separate it into its own .bundle, and it would still function (as long as it's linked correctly).
