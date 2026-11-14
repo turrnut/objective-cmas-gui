@@ -331,7 +331,7 @@ SIMASFUNC(macwritev2) {
 }
 
 SIMASFUNC(quit) {
-    [SIMASRuntime quitProgram];
+    [[SIMASRuntime runtime] quitProgram];
 }
 
 SIMASFUNC(xchg) {

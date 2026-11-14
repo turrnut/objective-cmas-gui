@@ -22,6 +22,10 @@
 #import "SIMASFunction.h"
 #import <pthread.h>
 
+static pthread_key_t runtimeKey;
+static pthread_once_t runtimeKeyOnce = PTHREAD_ONCE_INIT;
+static BOOL hasBeenInitialisedForMultithreading = NO;
+
 SIMASFUNC(labelNop) { return; }
 SIMASFUNC(importNop) { return; }
 SIMASFUNC(utiliseNop) { return; }
@@ -364,9 +368,8 @@ id getStackFrame(NSArray* args) {
     return [[SIMASRuntime currentProgram]->stack lastObject];
 }
 
-static SIMASRuntime** theRealRuntime() { // secret scary illegal functionality nobody must know about because if they did then the runtime is fucked. not much better than a global var but shhhshhshshsh it's fine
-    static SIMASRuntime* runtime = nil;
-    return &runtime;
+static void allocateRuntime() {
+    pthread_key_create(&runtimeKey, NULL);
 }
 
 @implementation SIMASRuntime
@@ -384,8 +387,8 @@ static SIMASRuntime** theRealRuntime() { // secret scary illegal functionality n
 
 - (id)init {
     self = [super init];
-    if (self && *theRealRuntime() == nil) {
-        *theRealRuntime() = self; // holy pointer dance batman
+    if (self && pthread_getspecific(runtimeKey) == NULL) {
+        pthread_setspecific(runtimeKey, self);
         registeredClasses = [NSMutableDictionary new];
         registeredTypes = [NSMutableDictionary new];
         registeredOperations = [NSMutableDictionary new];
@@ -422,12 +425,16 @@ static SIMASRuntime** theRealRuntime() { // secret scary illegal functionality n
         return self;
     } else {
         [self release];
-        return *theRealRuntime();
+        return pthread_getspecific(runtimeKey);
     }
 }
 
 + (SIMASRuntime*)runtime {
-    SIMASRuntime* runtime = *theRealRuntime();
+    if (!hasBeenInitialisedForMultithreading) {
+        pthread_once(&runtimeKeyOnce, allocateRuntime);
+        hasBeenInitialisedForMultithreading = YES;
+    }
+    SIMASRuntime* runtime = pthread_getspecific(runtimeKey);
     if (!runtime) runtime = [self new];
     return runtime;
 }
@@ -461,11 +468,8 @@ static SIMASRuntime** theRealRuntime() { // secret scary illegal functionality n
     [self throwException:exception withReason:reason];
     [[self runtime] printError:[NSString stringWithFormat:@"The person who wrote the code that triggered this exception to save you from your own stupidity would also like to say: %@.", remark]];
 }
-+ (void)quitProgram {
-    [SIMASRuntime runtime]->exceptionOccurred = YES; // shit way of doing it, but this flag does indeed kill the app so
-}
-+ (void)nullifyRuntime {
-    *theRealRuntime() = nil;
+- (void)quitProgram {
+    self->exceptionOccurred = YES; // shit way of doing it, but this flag does indeed kill the app so
 }
 - (void)loadLibrary:(NSBundle *)libraryBundle withPrefix:(NSString*)prefix {
     if ([[libraryBundle principalClass] conformsToProtocol:@protocol(SIMASLibrary)]) [libraryBundle load];
@@ -532,12 +536,12 @@ static SIMASRuntime** theRealRuntime() { // secret scary illegal functionality n
 
 - (void)print:(NSString*)string {
     if (pthread_main_np()) [self->outputter performSelector:self->outputSelector withObject:string];
-    else [self->outputter performSelectorOnMainThread:self->outputSelector withObject:string waitUntilDone:NO];
+    else [self->outputter performSelectorOnMainThread:self->outputSelector withObject:string waitUntilDone:YES];
 }
 
 - (void)printError:(NSString *)string {
     if (pthread_main_np()) [self->errorer performSelector:self->errorSelector withObject:string];
-    else [self->errorer performSelectorOnMainThread:self->errorSelector withObject:string waitUntilDone:NO];
+    else [self->errorer performSelectorOnMainThread:self->errorSelector withObject:string waitUntilDone:YES];
 }
 
 - (void)setInputter:(id)theInputter forMethod:(SEL)method {
@@ -545,7 +549,4 @@ static SIMASRuntime** theRealRuntime() { // secret scary illegal functionality n
     self->inputSelector = method;
 }
 
-- (void)setAsRuntime {
-    *theRealRuntime() = self;
-}
 @end

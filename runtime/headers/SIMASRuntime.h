@@ -110,8 +110,6 @@ NSArray *tokeniseStringExcludingQuotes(NSString*, NSCharacterSet*);
 + (void)throwException:(NSString*)exception withReason:(NSString*)reason;
 + (void)throwException:(NSString*)exception withReason:(NSString*)reason withSnideRemark:(NSString*)remark;
 + (void)throwException:(NSString*)exception withReason:(NSString*)reason withInstruction:(SIMASInstruction*)instruction;
-+ (void)quitProgram;
-+ (void)nullifyRuntime;
 
 // there must be a class method named "registerToSIMAS:". this removes itself on program end. prefix may not be nil, but may be "" if you want it to be root-level (no prefix).
 // the prefix is provided for you in the "utilising" (utilising [bundle] as [prefix]).
@@ -127,7 +125,7 @@ NSArray *tokeniseStringExcludingQuotes(NSString*, NSCharacterSet*);
 - (void)setInputter:(id)theInputter forMethod:(SEL)method;
 - (void)print:(NSString*)string;
 - (void)printError:(NSString*)string;
-- (void)setAsRuntime;
+- (void)quitProgram;
 
 - (BOOL)isExcepted;
 @end

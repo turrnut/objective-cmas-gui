@@ -20,12 +20,11 @@
     BOOL runtimeIsRunning;
 }
 
-@property (nonatomic, assign) IBOutlet NSButton *toggleSwitch;
-@property (nonatomic, assign) IBOutlet NSTextView *content;
-@property (nonatomic, assign) IBOutlet NSTextView *errors;
-@property (nonatomic, assign) IBOutlet NSTextView *output;
-@property (nonatomic, assign) IBOutlet NSTextField *input;
-@property (nonatomic, assign) NSLock *lock;
+@property (nonatomic, retain) IBOutlet NSButton *toggleSwitch;
+@property (nonatomic, retain) IBOutlet NSTextView *content;
+@property (nonatomic, retain) IBOutlet NSTextView *errors;
+@property (nonatomic, retain) IBOutlet NSTextView *output;
+@property (nonatomic, retain) IBOutlet NSTextField *input;
 
 - (IBAction)runTheProgram:(id)sender;
 @end

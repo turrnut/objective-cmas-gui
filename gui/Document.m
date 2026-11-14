@@ -20,10 +20,12 @@
 @implementation Document
 - (void)printOutput:(NSString*)str {
     self.output.string = [self.output.string stringByAppendingString:str];
+    [self.output scrollToEndOfDocument:nil];
 }
 
 - (void)printError:(NSString*)str {
     self.errors.string = [self.errors.string stringByAppendingString:str];
+    [self.output scrollToEndOfDocument:nil];
 }
 
 - (void)controlTextDidEndEditing:(NSNotification *)obj {
@@ -73,14 +75,6 @@
 - (instancetype)init {
     self = [super init];
     if (self) {
-        [SIMASRuntime nullifyRuntime];
-        self->runtime = [SIMASRuntime runtime];
-        [self->runtime registerLibrary:[SIMASStandardLibrary class] withPrefix:@""];
-        [self->runtime registerLibrary:[SIMASListLibrary class] withPrefix:@"List"];
-        [self->runtime setOutputter:self forMethod:@selector(printOutput:)];
-        [self->runtime setErrorOutputter:self forMethod:@selector(printError:)];
-        [self->runtime setInputter:self forMethod:@selector(takeUserInput)];
-        [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(stopProgram:) name:@"ProgramHasEnded" object:self->runtime];
         self->inputConditional = [NSCondition new];
     }
     return self;
@@ -98,7 +92,7 @@
     [super awakeFromNib];
     if (self->fileContents) self.content.string = self->fileContents;
     self.content.font = [NSFont fontWithName:@"Monaco" size:12.0f];
-    
+    self.content.horizontallyResizable = YES;
 }
 
 - (NSString *)windowNibName {
@@ -130,9 +124,6 @@
     self.output.string = @"";
     self.errors.string = @"";
     self.input.stringValue = @"";
-    self.content.editable = NO;
-    self.toggleSwitch.title = @"waiting on other programs to finish...";
-    self.toggleSwitch.enabled = NO;
     [self saveDocument:self];
 }
 
@@ -143,12 +134,14 @@
 }
 
 - (void)startProgram {
-    static NSLock *lock = nil;
-    if (!lock) lock = [NSLock new];
-    if (!self.lock) self.lock = lock;
     [self performSelectorOnMainThread:@selector(programStarter) withObject:nil waitUntilDone:YES];
-    [lock lock];
-    [self->runtime setAsRuntime];
+    self->runtime = [SIMASRuntime runtime];
+    [self->runtime registerLibrary:[SIMASStandardLibrary class] withPrefix:@""];
+    [self->runtime registerLibrary:[SIMASListLibrary class] withPrefix:@"List"];
+    [self->runtime setOutputter:self forMethod:@selector(printOutput:)];
+    [self->runtime setErrorOutputter:self forMethod:@selector(printError:)];
+    [self->runtime setInputter:self forMethod:@selector(takeUserInput)];
+    [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(stopProgram:) name:@"ProgramHasEnded" object:self->runtime];
     [self performSelectorOnMainThread:@selector(programHasBegun) withObject:nil waitUntilDone:YES];
     [self->runtime runFromString:self->fileContents];
 }
@@ -157,24 +150,28 @@
     [self performSelectorOnMainThread:@selector(controlTextDidEndEditing:) withObject:nil waitUntilDone:YES];
     [self.toggleSwitch performSelectorOnMainThread:@selector(setTitle:) withObject:@"run that shit burh" waitUntilDone:NO];
     self->runtimeIsRunning = NO;
-    [self.lock unlock];
+    [self->runtime release];
+    self->runtime = nil;
 }
 
 - (IBAction)runTheProgram:(id)sender {
-    if (self->runtimeIsRunning) {
-        [SIMASRuntime quitProgram];
-        self.content.editable = YES;
-    } else {
-        [NSThread detachNewThreadSelector:@selector(startProgram) toTarget:self withObject:nil];
-    }
+    if (self->runtime) [self->runtime quitProgram];
+    else [NSThread detachNewThreadSelector:@selector(startProgram) toTarget:self withObject:nil];
 }
 
-
+- (void)canCloseDocumentWithDelegate:(id)delegate shouldCloseSelector:(SEL)shouldCloseSelector contextInfo:(void *)contextInfo {
+    if (self->runtime) [self->runtime quitProgram];
+    [super canCloseDocumentWithDelegate:delegate shouldCloseSelector:shouldCloseSelector contextInfo:contextInfo];
+}
 
 - (void)dealloc {
     [[NSNotificationCenter defaultCenter] removeObserver:self];
     [self->fileContents release];
-    [self->runtime release];
+    [self->_input release];
+    [self->_output release];
+    [self->_errors release];
+    [self->_content release];
+    [self->_toggleSwitch release];
     [super dealloc];
 }
 
