@@ -92,7 +92,8 @@
     [super awakeFromNib];
     if (self->fileContents) self.content.string = self->fileContents;
     self.content.font = [NSFont fontWithName:@"Monaco" size:12.0f];
-    self.content.horizontallyResizable = YES;
+    self.content.textContainer.widthTracksTextView = NO;
+    self.content.textContainer.containerSize = NSMakeSize(FLT_MAX, FLT_MAX);
 }
 
 - (NSString *)windowNibName {
@@ -125,12 +126,7 @@
     self.errors.string = @"";
     self.input.stringValue = @"";
     [self saveDocument:self];
-}
-
-- (void)programHasBegun {
-    self->runtimeIsRunning = YES;
     self.toggleSwitch.title = @"stop that shit bruh";
-    self.toggleSwitch.enabled = YES;
 }
 
 - (void)startProgram {
@@ -142,14 +138,12 @@
     [self->runtime setErrorOutputter:self forMethod:@selector(printError:)];
     [self->runtime setInputter:self forMethod:@selector(takeUserInput)];
     [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(stopProgram:) name:@"ProgramHasEnded" object:self->runtime];
-    [self performSelectorOnMainThread:@selector(programHasBegun) withObject:nil waitUntilDone:YES];
     [self->runtime runFromString:self->fileContents];
 }
 
 - (void)stopProgram:(NSNotification*)notif {
     [self performSelectorOnMainThread:@selector(controlTextDidEndEditing:) withObject:nil waitUntilDone:YES];
     [self.toggleSwitch performSelectorOnMainThread:@selector(setTitle:) withObject:@"run that shit burh" waitUntilDone:NO];
-    self->runtimeIsRunning = NO;
     [self->runtime release];
     self->runtime = nil;
 }

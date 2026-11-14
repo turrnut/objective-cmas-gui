@@ -58,5 +58,6 @@ int main(int argc, const char * argv[]) {
         [[SIMASRuntime runtime] runFromString:@"import /Users/xandergomez/Downloads/Tests/vote.simas;"];
     }
     [pool release];
+    [[SIMASRuntime runtime] release];
     return 0;
 }

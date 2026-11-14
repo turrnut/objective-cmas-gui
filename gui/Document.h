@@ -14,10 +14,7 @@
     SIMASRuntime *runtime;
     
     NSCondition* inputConditional;
-    BOOL userHasInputted;
-    
-    NSAutoreleasePool *programPool;
-    BOOL runtimeIsRunning;
+    BOOL userHasInputted;    
 }
 
 @property (nonatomic, retain) IBOutlet NSButton *toggleSwitch;
