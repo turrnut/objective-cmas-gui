@@ -12,12 +12,12 @@
 				<string>simas</string>
 			</array>
 			<key>CFBundleTypeIconFile</key>
-			<string></string>
+			<string>AppIcon</string>
 			<key>CFBundleTypeName</key>
-			<string>DocumentType</string>
+			<string>SIMAS Source Code</string>
 			<key>CFBundleTypeOSTypes</key>
 			<array>
-				<string>????</string>
+				<string>com.tuvalutorture.simas</string>
 			</array>
 			<key>CFBundleTypeRole</key>
 			<string>Editor</string>

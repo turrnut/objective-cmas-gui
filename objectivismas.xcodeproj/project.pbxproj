@@ -27,6 +27,7 @@
 		D9E9953A30A81F6600CB385F /* libsimas_runtime.a in Frameworks */ = {isa = PBXBuildFile; fileRef = D9264C2B3051914B00D503F0 /* libsimas_runtime.a */; };
 		D9E9953B30A8202E00CB385F /* SIMASList.m in Sources */ = {isa = PBXBuildFile; fileRef = D9264C1A304E377000D503F0 /* SIMASList.m */; };
 		D9E9953C30A8202E00CB385F /* SIMASStandardLibrary.m in Sources */ = {isa = PBXBuildFile; fileRef = D9264BEC304D592E00D503F0 /* SIMASStandardLibrary.m */; };
+		D9E9953E30A8F96C00CB385F /* icon.png in Resources */ = {isa = PBXBuildFile; fileRef = D9E9953D30A8F96C00CB385F /* icon.png */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -71,6 +72,7 @@
 		D9E9952E30A8102000CB385F /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		D9E9952F30A8102000CB385F /* main.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = main.m; sourceTree = "<group>"; };
 		D9E9953130A8102000CB385F /* Objective_CMAS_GUI.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Objective_CMAS_GUI.entitlements; sourceTree = "<group>"; };
+		D9E9953D30A8F96C00CB385F /* icon.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = icon.png; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -186,6 +188,7 @@
 		D9E9951F30A8101B00CB385F /* gui */ = {
 			isa = PBXGroup;
 			children = (
+				D9E9953D30A8F96C00CB385F /* icon.png */,
 				D9E9952030A8101B00CB385F /* AppDelegate.h */,
 				D9E9952130A8101B00CB385F /* AppDelegate.m */,
 				D9E9952330A8101B00CB385F /* Document.h */,
@@ -319,6 +322,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				D9E9953E30A8F96C00CB385F /* icon.png in Resources */,
 				D9E9952A30A8102000CB385F /* Assets.xcassets in Resources */,
 				D9E9952830A8101B00CB385F /* Document.xib in Resources */,
 				D9E9952D30A8102000CB385F /* MainMenu.xib in Resources */,

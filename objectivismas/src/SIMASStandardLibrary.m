@@ -169,8 +169,7 @@ SIMASFUNC(setVar) {
     SIMASVariable *targetVar = [SIMASVariable makeVariable:name];
     if (!targetVar) return;
     if ([[[args objectAtIndex:0] lowercaseString] isEqualToString:@"in"]) {
-        NSFileHandle *standardin = [NSFileHandle fileHandleWithStandardInput];
-        [targetVar setData:[SIMASString stringWithString:formatEscapes([[[[NSString alloc] initWithData:[standardin availableData] encoding:NSASCIIStringEncoding] autorelease] stringByTrimmingCharactersInSet:[NSCharacterSet newlineCharacterSet]])]];
+        [targetVar setData:[SIMASString stringWithString:formatEscapes([SIMASRuntime userInput])]];
         return;
     }
     if ([args count] < 3) [SIMASRuntime throwException:@"IllegalArgumentCount" withReason:[NSString stringWithFormat:@"The provided instruction does not contain enough arguments (must be 3, got 2) for instruction set."]];

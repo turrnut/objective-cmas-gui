@@ -9,14 +9,23 @@
 #import <Cocoa/Cocoa.h>
 #import "SIMASRuntime.h"
 
-@interface Document : NSDocument <NSTextViewDelegate> {
+@interface Document : NSDocument <NSTextViewDelegate, NSTextFieldDelegate> {
     NSString *fileContents;
     SIMASRuntime *runtime;
+    
+    NSCondition* inputConditional;
+    BOOL userHasInputted;
+    
+    NSAutoreleasePool *programPool;
+    BOOL runtimeIsRunning;
 }
 
-@property (nonatomic, retain) IBOutlet NSTextView *content;
-@property (nonatomic, retain) IBOutlet NSTextView *errors;
-@property (nonatomic, retain) IBOutlet NSTextView *output;
+@property (nonatomic, assign) IBOutlet NSButton *toggleSwitch;
+@property (nonatomic, assign) IBOutlet NSTextView *content;
+@property (nonatomic, assign) IBOutlet NSTextView *errors;
+@property (nonatomic, assign) IBOutlet NSTextView *output;
+@property (nonatomic, assign) IBOutlet NSTextField *input;
+@property (nonatomic, assign) NSLock *lock;
 
 - (IBAction)runTheProgram:(id)sender;
 @end

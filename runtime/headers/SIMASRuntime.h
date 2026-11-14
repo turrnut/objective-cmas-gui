@@ -94,8 +94,10 @@ NSArray *tokeniseStringExcludingQuotes(NSString*, NSCharacterSet*);
     BOOL exceptionOccurred; // should this be like this? probably not. is it a good cheap way to check though? yeeeeeee
     id outputter;
     id errorer;
+    id inputter;
     SEL outputSelector;
     SEL errorSelector;
+    SEL inputSelector;
 @public
     NSMutableDictionary *registeredClasses;
     NSMutableDictionary *registeredOperations;
@@ -122,6 +124,7 @@ NSArray *tokeniseStringExcludingQuotes(NSString*, NSCharacterSet*);
 - (void)runFromString:(NSString*)string; // does all the setup for you
 - (void)setOutputter:(id)theOutputter forMethod:(SEL)method;
 - (void)setErrorOutputter:(id)theOutputter forMethod:(SEL)method;
+- (void)setInputter:(id)theInputter forMethod:(SEL)method;
 - (void)print:(NSString*)string;
 - (void)printError:(NSString*)string;
 - (void)setAsRuntime;

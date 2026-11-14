@@ -10,6 +10,8 @@
 #import "SIMASRuntime.h"
 #import "SIMASStandardLibrary.h"
 #import "SIMASList.h"
+#import <objc/runtime.h>
+#import <pthread.h>
 
 @interface Document ()
 
@@ -24,6 +26,50 @@
     self.errors.string = [self.errors.string stringByAppendingString:str];
 }
 
+- (void)controlTextDidEndEditing:(NSNotification *)obj {
+    [self->inputConditional lock];
+    [self.input.window makeFirstResponder:self.content];
+    self.input.editable = NO;
+    self.input.enabled = NO;
+    self->userHasInputted = YES;
+    [self->inputConditional signal];
+    [self->inputConditional unlock];
+}
+
+- (void)wakeUpInput {
+    self.input.enabled = YES;
+    self.input.editable = YES;
+    [self.input.window makeFirstResponder:self.input];
+    self.input.stringValue = @"";
+    self->userHasInputted = NO;
+}
+
+- (void)lockInput {
+    self.input.stringValue = @"";
+    self.input.enabled = NO;
+}
+
+- (NSString*)doSomeJank {
+    static NSString *theString = nil;
+    theString = nil;
+    if (pthread_main_np()) theString = self.input.stringValue;
+    else [self performSelectorOnMainThread:_cmd withObject:nil waitUntilDone:YES];
+    return theString;
+}
+
+- (NSString*)takeUserInput {
+    NSString *str = nil;
+    [self->inputConditional lock];
+    [self performSelectorOnMainThread:@selector(wakeUpInput) withObject:nil waitUntilDone:YES];
+    while (!self->userHasInputted) [self->inputConditional wait];
+    self->userHasInputted = NO;
+    [self->inputConditional unlock];
+    str = [self doSomeJank];
+    [self performSelectorOnMainThread:@selector(lockInput) withObject:nil waitUntilDone:YES];
+    [self performSelectorOnMainThread:@selector(printOutput:) withObject:[str stringByAppendingString:@"\n"] waitUntilDone:YES];
+    return str;
+}
+
 - (instancetype)init {
     self = [super init];
     if (self) {
@@ -33,6 +79,9 @@
         [self->runtime registerLibrary:[SIMASListLibrary class] withPrefix:@"List"];
         [self->runtime setOutputter:self forMethod:@selector(printOutput:)];
         [self->runtime setErrorOutputter:self forMethod:@selector(printError:)];
+        [self->runtime setInputter:self forMethod:@selector(takeUserInput)];
+        [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(stopProgram:) name:@"ProgramHasEnded" object:self->runtime];
+        self->inputConditional = [NSCondition new];
     }
     return self;
 }
@@ -49,6 +98,7 @@
     [super awakeFromNib];
     if (self->fileContents) self.content.string = self->fileContents;
     self.content.font = [NSFont fontWithName:@"Monaco" size:12.0f];
+    
 }
 
 - (NSString *)windowNibName {
@@ -76,19 +126,53 @@
     return YES;
 }
 
-- (IBAction)runTheProgram:(id)sender {
-    static NSLock *lock = nil;
-    if (!lock) lock = [NSLock new];
+- (void)programStarter {
     self.output.string = @"";
     self.errors.string = @"";
+    self.input.stringValue = @"";
+    self.content.editable = NO;
+    self.toggleSwitch.title = @"waiting on other programs to finish...";
+    self.toggleSwitch.enabled = NO;
     [self saveDocument:self];
-    [lock lock];
-    [self->runtime setAsRuntime];
-    [NSThread detachNewThreadSelector:@selector(runFromString:) toTarget:self->runtime withObject:self->fileContents];
-    [lock unlock];
 }
 
+- (void)programHasBegun {
+    self->runtimeIsRunning = YES;
+    self.toggleSwitch.title = @"stop that shit bruh";
+    self.toggleSwitch.enabled = YES;
+}
+
+- (void)startProgram {
+    static NSLock *lock = nil;
+    if (!lock) lock = [NSLock new];
+    if (!self.lock) self.lock = lock;
+    [self performSelectorOnMainThread:@selector(programStarter) withObject:nil waitUntilDone:YES];
+    [lock lock];
+    [self->runtime setAsRuntime];
+    [self performSelectorOnMainThread:@selector(programHasBegun) withObject:nil waitUntilDone:YES];
+    [self->runtime runFromString:self->fileContents];
+}
+
+- (void)stopProgram:(NSNotification*)notif {
+    [self performSelectorOnMainThread:@selector(controlTextDidEndEditing:) withObject:nil waitUntilDone:YES];
+    [self.toggleSwitch performSelectorOnMainThread:@selector(setTitle:) withObject:@"run that shit burh" waitUntilDone:NO];
+    self->runtimeIsRunning = NO;
+    [self.lock unlock];
+}
+
+- (IBAction)runTheProgram:(id)sender {
+    if (self->runtimeIsRunning) {
+        [SIMASRuntime quitProgram];
+        self.content.editable = YES;
+    } else {
+        [NSThread detachNewThreadSelector:@selector(startProgram) toTarget:self withObject:nil];
+    }
+}
+
+
+
 - (void)dealloc {
+    [[NSNotificationCenter defaultCenter] removeObserver:self];
     [self->fileContents release];
     [self->runtime release];
     [super dealloc];

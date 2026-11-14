@@ -378,6 +378,10 @@ static SIMASRuntime** theRealRuntime() { // secret scary illegal functionality n
     NSLog(@"%@", string);
 }
 
+- (NSString*)stdinput {
+    return [[[[NSString alloc] initWithData:[[NSFileHandle fileHandleWithStandardInput] availableData] encoding:NSASCIIStringEncoding] autorelease] stringByTrimmingCharactersInSet:[NSCharacterSet newlineCharacterSet]];
+}
+
 - (id)init {
     self = [super init];
     if (self && *theRealRuntime() == nil) {
@@ -414,6 +418,7 @@ static SIMASRuntime** theRealRuntime() { // secret scary illegal functionality n
         [pool release];
         [self setOutputter:self forMethod:@selector(stdoutPrint:)];
         [self setErrorOutputter:self forMethod:@selector(errPrint:)];
+        [self setInputter:self forMethod:@selector(stdinput)];
         return self;
     } else {
         [self release];
@@ -433,7 +438,7 @@ static SIMASRuntime** theRealRuntime() { // secret scary illegal functionality n
 
 + (NSString*)userInput {
     fflush(stdout);
-    return [[[[NSString alloc] initWithData:[[NSFileHandle fileHandleWithStandardInput] availableData] encoding:NSASCIIStringEncoding] autorelease] stringByTrimmingCharactersInSet:[NSCharacterSet newlineCharacterSet]];
+    return [[self runtime]->inputter performSelector:[self runtime]->inputSelector];
 }
 
 + (void)throwException:(NSString*)exception withReason:(NSString*)reason {
@@ -510,6 +515,7 @@ static SIMASRuntime** theRealRuntime() { // secret scary illegal functionality n
         [appPool release];
         currentProgram = nil;
         exceptionOccurred = NO;
+    [[NSNotificationCenter defaultCenter] postNotificationName:@"ProgramHasEnded" object:self];
 }
 
 - (BOOL)isExcepted { return exceptionOccurred; }
@@ -532,6 +538,11 @@ static SIMASRuntime** theRealRuntime() { // secret scary illegal functionality n
 - (void)printError:(NSString *)string {
     if (pthread_main_np()) [self->errorer performSelector:self->errorSelector withObject:string];
     else [self->errorer performSelectorOnMainThread:self->errorSelector withObject:string waitUntilDone:NO];
+}
+
+- (void)setInputter:(id)theInputter forMethod:(SEL)method {
+    self->inputter = theInputter;
+    self->inputSelector = method;
 }
 
 - (void)setAsRuntime {
