@@ -92,6 +92,10 @@ NSArray *tokeniseStringExcludingQuotes(NSString*, NSCharacterSet*);
     NSAutoreleasePool *appPool;
     SIMASProgram *currentProgram;
     BOOL exceptionOccurred; // should this be like this? probably not. is it a good cheap way to check though? yeeeeeee
+    id outputter;
+    id errorer;
+    SEL outputSelector;
+    SEL errorSelector;
 @public
     NSMutableDictionary *registeredClasses;
     NSMutableDictionary *registeredOperations;
@@ -105,6 +109,7 @@ NSArray *tokeniseStringExcludingQuotes(NSString*, NSCharacterSet*);
 + (void)throwException:(NSString*)exception withReason:(NSString*)reason withSnideRemark:(NSString*)remark;
 + (void)throwException:(NSString*)exception withReason:(NSString*)reason withInstruction:(SIMASInstruction*)instruction;
 + (void)quitProgram;
++ (void)nullifyRuntime;
 
 // there must be a class method named "registerToSIMAS:". this removes itself on program end. prefix may not be nil, but may be "" if you want it to be root-level (no prefix).
 // the prefix is provided for you in the "utilising" (utilising [bundle] as [prefix]).
@@ -115,6 +120,11 @@ NSArray *tokeniseStringExcludingQuotes(NSString*, NSCharacterSet*);
 - (void)registerType:(Class)type withName:(NSString*)name;
 - (void)executeInstructions:(NSArray*)instructions; // runs instructions DURING the program, but does not insert itself into the program. some functions may work wrongly/improperly, as these are not preprocessed by default
 - (void)runFromString:(NSString*)string; // does all the setup for you
+- (void)setOutputter:(id)theOutputter forMethod:(SEL)method;
+- (void)setErrorOutputter:(id)theOutputter forMethod:(SEL)method;
+- (void)print:(NSString*)string;
+- (void)printError:(NSString*)string;
+- (void)setAsRuntime;
 
 - (BOOL)isExcepted;
 @end

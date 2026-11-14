@@ -183,19 +183,19 @@ SIMASFUNC(setVar) {
 SIMASFUNC(consolePrint) {
     SIMASVariable *var = SIMASGETVARIABLEWITHARGUMENT(0);
     if (!var) { [SIMASRuntime throwException:@"NonexistentVariable" withReason:[NSString stringWithFormat:@"Variable %@ does not exist, and the function which you are using it from does not implicitly create variables.", [args objectAtIndex:0]]]; return; }
-    printf("%s", [[[var data] toString] UTF8String]);
+    [[SIMASRuntime runtime] print:[[var data] toString]];
 }
 
 SIMASFUNC(consolePrintc) {
-    printf("%s", [[args objectAtIndex:0] UTF8String]);
+    [[SIMASRuntime runtime] print:[args objectAtIndex:0]];
 }
 
 SIMASFUNC(consolePrints) {
-    printf(" ");
+    [[SIMASRuntime runtime] print:@" "];
 }
 
 SIMASFUNC(consolePrintln) {
-    printf("\n");
+    [[SIMASRuntime runtime] print:@"\n"];
 }
 
 SIMASCLASSMETHOD(SIMASNumber)

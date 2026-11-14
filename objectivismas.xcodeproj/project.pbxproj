@@ -18,6 +18,15 @@
 		D9264C393051916200D503F0 /* SIMASRuntime.m in Sources */ = {isa = PBXBuildFile; fileRef = D9264BF2304D594800D503F0 /* SIMASRuntime.m */; };
 		D9264C3A3051916200D503F0 /* SIMASFunction.h in Headers */ = {isa = PBXBuildFile; fileRef = D9264BF4304E05FA00D503F0 /* SIMASFunction.h */; settings = {ATTRIBUTES = (Public, ); }; };
 		D9264C3B3051916200D503F0 /* SIMASFunction.m in Sources */ = {isa = PBXBuildFile; fileRef = D9264BF5304E05FA00D503F0 /* SIMASFunction.m */; };
+		D9E9952230A8101B00CB385F /* AppDelegate.m in Sources */ = {isa = PBXBuildFile; fileRef = D9E9952130A8101B00CB385F /* AppDelegate.m */; };
+		D9E9952530A8101B00CB385F /* Document.m in Sources */ = {isa = PBXBuildFile; fileRef = D9E9952430A8101B00CB385F /* Document.m */; };
+		D9E9952830A8101B00CB385F /* Document.xib in Resources */ = {isa = PBXBuildFile; fileRef = D9E9952630A8101B00CB385F /* Document.xib */; };
+		D9E9952A30A8102000CB385F /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = D9E9952930A8102000CB385F /* Assets.xcassets */; };
+		D9E9952D30A8102000CB385F /* MainMenu.xib in Resources */ = {isa = PBXBuildFile; fileRef = D9E9952B30A8102000CB385F /* MainMenu.xib */; };
+		D9E9953030A8102000CB385F /* main.m in Sources */ = {isa = PBXBuildFile; fileRef = D9E9952F30A8102000CB385F /* main.m */; };
+		D9E9953A30A81F6600CB385F /* libsimas_runtime.a in Frameworks */ = {isa = PBXBuildFile; fileRef = D9264C2B3051914B00D503F0 /* libsimas_runtime.a */; };
+		D9E9953B30A8202E00CB385F /* SIMASList.m in Sources */ = {isa = PBXBuildFile; fileRef = D9264C1A304E377000D503F0 /* SIMASList.m */; };
+		D9E9953C30A8202E00CB385F /* SIMASStandardLibrary.m in Sources */ = {isa = PBXBuildFile; fileRef = D9264BEC304D592E00D503F0 /* SIMASStandardLibrary.m */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -51,6 +60,17 @@
 		D9264C1F3051870200D503F0 /* SIMASCommandLine.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = SIMASCommandLine.m; sourceTree = "<group>"; };
 		D9264C2330518C7800D503F0 /* LIBRARIES.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = LIBRARIES.md; sourceTree = "<group>"; };
 		D9264C2B3051914B00D503F0 /* libsimas_runtime.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = libsimas_runtime.a; sourceTree = BUILT_PRODUCTS_DIR; };
+		D9E9951E30A8101B00CB385F /* Objective-CMAS.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Objective-CMAS.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+		D9E9952030A8101B00CB385F /* AppDelegate.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = AppDelegate.h; sourceTree = "<group>"; };
+		D9E9952130A8101B00CB385F /* AppDelegate.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = AppDelegate.m; sourceTree = "<group>"; };
+		D9E9952330A8101B00CB385F /* Document.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = Document.h; sourceTree = "<group>"; };
+		D9E9952430A8101B00CB385F /* Document.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = Document.m; sourceTree = "<group>"; };
+		D9E9952730A8101B00CB385F /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.xib; name = Base; path = Base.lproj/Document.xib; sourceTree = "<group>"; };
+		D9E9952930A8102000CB385F /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		D9E9952C30A8102000CB385F /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.xib; name = Base; path = Base.lproj/MainMenu.xib; sourceTree = "<group>"; };
+		D9E9952E30A8102000CB385F /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		D9E9952F30A8102000CB385F /* main.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = main.m; sourceTree = "<group>"; };
+		D9E9953130A8102000CB385F /* Objective_CMAS_GUI.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Objective_CMAS_GUI.entitlements; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -69,6 +89,14 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		D9E9951B30A8101B00CB385F /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				D9E9953A30A81F6600CB385F /* libsimas_runtime.a in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -77,10 +105,12 @@
 			children = (
 				D9264C2430518EFA00D503F0 /* runtime */,
 				D9264BE0304D528000D503F0 /* objectivismas */,
+				D9E9951F30A8101B00CB385F /* gui */,
 				D9264BDF304D528000D503F0 /* Products */,
 				D9264C1C304F97F900D503F0 /* DOCS.md */,
 				D9264C1D304F97F900D503F0 /* README.md */,
 				D9264C2330518C7800D503F0 /* LIBRARIES.md */,
+				D9E9953930A81F6600CB385F /* Frameworks */,
 			);
 			sourceTree = "<group>";
 		};
@@ -89,6 +119,7 @@
 			children = (
 				D9264BDE304D528000D503F0 /* objectivismas */,
 				D9264C2B3051914B00D503F0 /* libsimas_runtime.a */,
+				D9E9951E30A8101B00CB385F /* Objective-CMAS.app */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -152,6 +183,30 @@
 			path = src;
 			sourceTree = "<group>";
 		};
+		D9E9951F30A8101B00CB385F /* gui */ = {
+			isa = PBXGroup;
+			children = (
+				D9E9952030A8101B00CB385F /* AppDelegate.h */,
+				D9E9952130A8101B00CB385F /* AppDelegate.m */,
+				D9E9952330A8101B00CB385F /* Document.h */,
+				D9E9952430A8101B00CB385F /* Document.m */,
+				D9E9952630A8101B00CB385F /* Document.xib */,
+				D9E9952930A8102000CB385F /* Assets.xcassets */,
+				D9E9952B30A8102000CB385F /* MainMenu.xib */,
+				D9E9952E30A8102000CB385F /* Info.plist */,
+				D9E9952F30A8102000CB385F /* main.m */,
+				D9E9953130A8102000CB385F /* Objective_CMAS_GUI.entitlements */,
+			);
+			path = gui;
+			sourceTree = "<group>";
+		};
+		D9E9953930A81F6600CB385F /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
 /* End PBXGroup section */
 
 /* Begin PBXHeadersBuildPhase section */
@@ -202,6 +257,23 @@
 			productReference = D9264C2B3051914B00D503F0 /* libsimas_runtime.a */;
 			productType = "com.apple.product-type.library.static";
 		};
+		D9E9951D30A8101B00CB385F /* Objective-CMAS GUI */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = D9E9953230A8102000CB385F /* Build configuration list for PBXNativeTarget "Objective-CMAS GUI" */;
+			buildPhases = (
+				D9E9951A30A8101B00CB385F /* Sources */,
+				D9E9951B30A8101B00CB385F /* Frameworks */,
+				D9E9951C30A8101B00CB385F /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = "Objective-CMAS GUI";
+			productName = "Objective-CMAS GUI";
+			productReference = D9E9951E30A8101B00CB385F /* Objective-CMAS.app */;
+			productType = "com.apple.product-type.application";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -217,6 +289,9 @@
 					D9264C2A3051914B00D503F0 = {
 						CreatedOnToolsVersion = 10.3;
 					};
+					D9E9951D30A8101B00CB385F = {
+						CreatedOnToolsVersion = 10.3;
+					};
 				};
 			};
 			buildConfigurationList = D9264BD9304D528000D503F0 /* Build configuration list for PBXProject "objectivismas" */;
@@ -225,6 +300,7 @@
 			hasScannedForEncodings = 0;
 			knownRegions = (
 				en,
+				Base,
 			);
 			mainGroup = D9264BD5304D528000D503F0;
 			productRefGroup = D9264BDF304D528000D503F0 /* Products */;
@@ -233,9 +309,23 @@
 			targets = (
 				D9264BDD304D528000D503F0 /* objectivismas */,
 				D9264C2A3051914B00D503F0 /* simas_runtime */,
+				D9E9951D30A8101B00CB385F /* Objective-CMAS GUI */,
 			);
 		};
 /* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		D9E9951C30A8101B00CB385F /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				D9E9952A30A8102000CB385F /* Assets.xcassets in Resources */,
+				D9E9952830A8101B00CB385F /* Document.xib in Resources */,
+				D9E9952D30A8102000CB385F /* MainMenu.xib in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
 		D9264BDA304D528000D503F0 /* Sources */ = {
@@ -259,7 +349,38 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		D9E9951A30A8101B00CB385F /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				D9E9952530A8101B00CB385F /* Document.m in Sources */,
+				D9E9953030A8102000CB385F /* main.m in Sources */,
+				D9E9953C30A8202E00CB385F /* SIMASStandardLibrary.m in Sources */,
+				D9E9952230A8101B00CB385F /* AppDelegate.m in Sources */,
+				D9E9953B30A8202E00CB385F /* SIMASList.m in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
+
+/* Begin PBXVariantGroup section */
+		D9E9952630A8101B00CB385F /* Document.xib */ = {
+			isa = PBXVariantGroup;
+			children = (
+				D9E9952730A8101B00CB385F /* Base */,
+			);
+			name = Document.xib;
+			sourceTree = "<group>";
+		};
+		D9E9952B30A8102000CB385F /* MainMenu.xib */ = {
+			isa = PBXVariantGroup;
+			children = (
+				D9E9952C30A8102000CB385F /* Base */,
+			);
+			name = MainMenu.xib;
+			sourceTree = "<group>";
+		};
+/* End PBXVariantGroup section */
 
 /* Begin XCBuildConfiguration section */
 		D9264BE3304D528000D503F0 /* Debug */ = {
@@ -431,6 +552,52 @@
 			};
 			name = Release;
 		};
+		D9E9953330A8102000CB385F /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CLANG_ENABLE_OBJC_ARC = NO;
+				CLANG_ENABLE_OBJC_WEAK = NO;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CODE_SIGN_ENTITLEMENTS = "Objective-CMAS GUI/Objective_CMAS_GUI.entitlements";
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				HEADER_SEARCH_PATHS = (
+					"$(SRCROOT)/runtime/headers",
+					"$(SRCROOT)/objectivismas/headers",
+				);
+				INFOPLIST_FILE = gui/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/../Frameworks";
+				MACOSX_DEPLOYMENT_TARGET = 10.14;
+				PRODUCT_BUNDLE_IDENTIFIER = "com.tuvalutorture.Objective-CMAS-GUI";
+				PRODUCT_NAME = "Objective-CMAS";
+			};
+			name = Debug;
+		};
+		D9E9953430A8102000CB385F /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CLANG_ENABLE_OBJC_ARC = NO;
+				CLANG_ENABLE_OBJC_WEAK = NO;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CODE_SIGN_ENTITLEMENTS = "Objective-CMAS GUI/Objective_CMAS_GUI.entitlements";
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				HEADER_SEARCH_PATHS = (
+					"$(SRCROOT)/runtime/headers",
+					"$(SRCROOT)/objectivismas/headers",
+				);
+				INFOPLIST_FILE = gui/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/../Frameworks";
+				MACOSX_DEPLOYMENT_TARGET = 10.14;
+				PRODUCT_BUNDLE_IDENTIFIER = "com.tuvalutorture.Objective-CMAS-GUI";
+				PRODUCT_NAME = "Objective-CMAS";
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -457,6 +624,15 @@
 			buildConfigurations = (
 				D9264C323051914B00D503F0 /* Debug */,
 				D9264C333051914B00D503F0 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		D9E9953230A8102000CB385F /* Build configuration list for PBXNativeTarget "Objective-CMAS GUI" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				D9E9953330A8102000CB385F /* Debug */,
+				D9E9953430A8102000CB385F /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

@@ -55,7 +55,7 @@ int main(int argc, const char * argv[]) {
             [programPool release];
         }
     } else {
-        [[SIMASRuntime runtime] runFromString:@"import ./fibonacci.simas;"];
+        [[SIMASRuntime runtime] runFromString:@"import /Users/xandergomez/Downloads/Tests/fibonacci.simas;"];
     }
     [pool release];
     return 0;

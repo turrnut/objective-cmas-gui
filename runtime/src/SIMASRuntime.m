@@ -20,6 +20,7 @@
 
 #import "SIMASRuntime.h"
 #import "SIMASFunction.h"
+#import <pthread.h>
 
 SIMASFUNC(labelNop) { return; }
 SIMASFUNC(importNop) { return; }
@@ -369,6 +370,14 @@ static SIMASRuntime** theRealRuntime() { // secret scary illegal functionality n
 }
 
 @implementation SIMASRuntime
+- (void)stdoutPrint:(NSString*)string {
+    printf("%s", [string UTF8String]);
+}
+
+- (void)errPrint:(NSString*)string {
+    NSLog(@"%@", string);
+}
+
 - (id)init {
     self = [super init];
     if (self && *theRealRuntime() == nil) {
@@ -403,6 +412,8 @@ static SIMASRuntime** theRealRuntime() { // secret scary illegal functionality n
         [thing setMaxArgs:3];
         [self registerOperation:thing withName:@"ret" withPrefix:@""];
         [pool release];
+        [self setOutputter:self forMethod:@selector(stdoutPrint:)];
+        [self setErrorOutputter:self forMethod:@selector(errPrint:)];
         return self;
     } else {
         [self release];
@@ -433,20 +444,23 @@ static SIMASRuntime** theRealRuntime() { // secret scary illegal functionality n
     SIMASInstruction *theInstruction = nil;
     if (program && [instructions count] > program->programCounter) theInstruction = [instructions objectAtIndex:program->programCounter];
     puts("");
-    NSLog(@"A %@ exception occurred: %@", exception, reason);
-    if (theInstruction) NSLog(@"Faulty code: %@", [theInstruction stringValue]);
+    [[self runtime] printError:[NSString stringWithFormat:@"A %@ exception occurred: %@", exception, reason]];
+    if (theInstruction) [[self runtime] printError:[NSString stringWithFormat:@"Faulty code: %@", [theInstruction stringValue]]];
 }
 + (void)throwException:(NSString*)exception withReason:(NSString*)reason withInstruction:(SIMASInstruction*)instruction {
     SIMASRuntime *theRuntime = [SIMASRuntime runtime];
     theRuntime->exceptionOccurred = YES;
-    NSLog(@"A %@ exception occurred: %@\nFaulty code: %@", exception, reason, [instruction stringValue]);
+    [[self runtime] printError:[NSString stringWithFormat:@"A %@ exception occurred: %@\nFaulty code: %@", exception, reason, [instruction stringValue]]];
 }
 + (void)throwException:(NSString *)exception withReason:(NSString *)reason withSnideRemark:(NSString*)remark {
     [self throwException:exception withReason:reason];
-    NSLog(@"The person who wrote the code that triggered this exception to save you from your own stupidity would also like to say: %@.", remark);
+    [[self runtime] printError:[NSString stringWithFormat:@"The person who wrote the code that triggered this exception to save you from your own stupidity would also like to say: %@.", remark]];
 }
 + (void)quitProgram {
     [SIMASRuntime runtime]->exceptionOccurred = YES; // shit way of doing it, but this flag does indeed kill the app so
+}
++ (void)nullifyRuntime {
+    *theRealRuntime() = nil;
 }
 - (void)loadLibrary:(NSBundle *)libraryBundle withPrefix:(NSString*)prefix {
     if ([[libraryBundle principalClass] conformsToProtocol:@protocol(SIMASLibrary)]) [libraryBundle load];
@@ -484,18 +498,43 @@ static SIMASRuntime** theRealRuntime() { // secret scary illegal functionality n
 - (void)runFromString:(NSString*)string {
     appPool = [NSAutoreleasePool new];
     currentProgram = [SIMASProgram loadFromString:string];
-    if (exceptionOccurred) { exceptionOccurred = NO; [appPool release]; return; }
+    if (exceptionOccurred) goto cleanup;
     [SIMASInstruction preprocessImports:currentProgram->instructions];
     currentProgram->labels = [[SIMASInstruction preprocessLabels:currentProgram->instructions] retain];
-    if (exceptionOccurred) { exceptionOccurred = NO; [appPool release]; return; }
+    if (exceptionOccurred) goto cleanup;
     for (currentProgram->programCounter = 0; currentProgram->programCounter < [currentProgram->instructions count]; currentProgram->programCounter++) {
         [[currentProgram->instructions objectAtIndex:currentProgram->programCounter] execute];
         if (exceptionOccurred) break;
     }
-    [appPool release];
-    currentProgram = nil;
-    exceptionOccurred = NO;
+    cleanup:
+        [appPool release];
+        currentProgram = nil;
+        exceptionOccurred = NO;
 }
 
 - (BOOL)isExcepted { return exceptionOccurred; }
+
+- (void)setOutputter:(id)theOutputter forMethod:(SEL)method {
+    self->outputter = theOutputter;
+    self->outputSelector = method;
+}
+
+- (void)setErrorOutputter:(id)theOutputter forMethod:(SEL)method {
+    self->errorer = theOutputter;
+    self->errorSelector = method;
+}
+
+- (void)print:(NSString*)string {
+    if (pthread_main_np()) [self->outputter performSelector:self->outputSelector withObject:string];
+    else [self->outputter performSelectorOnMainThread:self->outputSelector withObject:string waitUntilDone:NO];
+}
+
+- (void)printError:(NSString *)string {
+    if (pthread_main_np()) [self->errorer performSelector:self->errorSelector withObject:string];
+    else [self->errorer performSelectorOnMainThread:self->errorSelector withObject:string waitUntilDone:NO];
+}
+
+- (void)setAsRuntime {
+    *theRealRuntime() = self;
+}
 @end
