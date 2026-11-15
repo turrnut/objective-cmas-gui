@@ -88,6 +88,10 @@
     program->programCounter = function->location;
 }
 - (void)loopStackFrame:(NSArray*)args {
+    if (!self || !self->function) {
+        [SIMASRuntime throwException:@"IllegalEnd" withReason:@"The function which you are trying to end, sadly, is nonexistent. And so is the stack frame at which this exception is occurring." withSnideRemark:@"Seriously, how in the fuck did we get here?"];
+        return;
+    }
     [SIMASRuntime currentProgram]->programCounter = self->function->location;
 }
 - (void)endStackFrame:(NSArray*)args {

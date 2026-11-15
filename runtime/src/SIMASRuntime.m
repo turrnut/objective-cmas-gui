@@ -93,7 +93,7 @@ NSArray *tokeniseStringExcludingQuotes(NSString* str, NSCharacterSet* charSet) {
         if (!quoteIndexes[i]) {
             NSMutableArray *sliced = [[string componentsSeparatedByCharactersInSet:charSet] mutableCopy];
             for (int ii = 0; ii < [sliced count]; ii++) {
-                [sliced replaceObjectAtIndex:ii withObject:[[sliced objectAtIndex:ii] stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceCharacterSet]]];
+                [sliced replaceObjectAtIndex:ii withObject:[[sliced objectAtIndex:ii] stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceAndNewlineCharacterSet]]];
                 if ([[sliced objectAtIndex:ii] length] < 1) [sliced removeObjectAtIndex:ii--];
             }
             if ([sliced count]) [objects addObjectsFromArray:sliced];
@@ -236,8 +236,7 @@ NSArray *tokeniseStringExcludingQuotes(NSString* str, NSCharacterSet* charSet) {
     while ([instructionStrings count]) {
         NSAutoreleasePool *pool = [NSAutoreleasePool new];
         NSMutableCharacterSet *characters = [NSMutableCharacterSet whitespaceAndNewlineCharacterSet];
-        [characters addCharactersInString:@";"];
-        NSString *str = [[[instructionStrings objectAtIndex:0] stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceAndNewlineCharacterSet]] stringByAppendingString:@";"];
+        NSString *str = [[instructionStrings objectAtIndex:0] stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceAndNewlineCharacterSet]];
         if ([str length] && [str characterAtIndex:0] == '@') { [instructionStrings removeObjectAtIndex:0]; [pool release]; continue; }
         NSArray *tokenised = tokeniseStringExcludingQuotes(str, characters);
         if ([tokenised count] && [[tokenised objectAtIndex:0] length])[tokens addObject:tokenised];
@@ -393,7 +392,7 @@ static void allocateRuntime() {
         registeredTypes = [NSMutableDictionary new];
         registeredOperations = [NSMutableDictionary new];
         NSAutoreleasePool *pool = [NSAutoreleasePool new];
-        [SIMASBoolean registerToRuntime]; 
+        [SIMASBoolean registerToRuntime];
         [SIMASNumber registerToRuntime];
         [SIMASString registerToRuntime];
         SIMASOperation *thing;
@@ -407,7 +406,7 @@ static void allocateRuntime() {
         [thing setArgRange:1 toMaximum:3];
         [self registerOperation:thing withName:@"utilising" withPrefix:@""];
         thing = [SIMASOperation makeWithFunction:SIMASGETFUNCTION([SIMASFunction class], @selector(registerFunction:)) withTargetGetter:SIMASCLASSMETHODNAME(SIMASFunction) andSelectorGetter:nullSelector];
-        [thing setMinArgs:1];
+        [thing setMinArgs:2];
         [self registerOperation:thing withName:@"fun" withPrefix:@""];
         thing = [SIMASOperation makeWithFunction:SIMASGETFUNCTION([SIMASStackFrame class], @selector(pushStackFrame:)) withTargetGetter:SIMASCLASSMETHODNAME(SIMASStackFrame) andSelectorGetter:nullSelector];
         [thing setMinArgs:1];
@@ -519,7 +518,7 @@ static void allocateRuntime() {
         [appPool release];
         currentProgram = nil;
         exceptionOccurred = NO;
-    [[NSNotificationCenter defaultCenter] postNotificationName:@"ProgramHasEnded" object:self];
+    [self->ending performSelector:self->endingSelector];
 }
 
 - (BOOL)isExcepted { return exceptionOccurred; }
@@ -547,6 +546,11 @@ static void allocateRuntime() {
 - (void)setInputter:(id)theInputter forMethod:(SEL)method {
     self->inputter = theInputter;
     self->inputSelector = method;
+}
+
+-(void)setEnding:(id)theEnding forMethod:(SEL)method {
+    self->ending = theEnding;
+    self->endingSelector = method;
 }
 
 @end

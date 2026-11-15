@@ -64,13 +64,6 @@
     return str;
 }
 
-- (void)parkRuntime {
-    [self->runtimeConditional lock];
-    while (!self->isRunning) [self->runtimeConditional wait];
-    [self->runtimeConditional unlock];
-    [self->runner invoke];
-}
-
 - (void)prepareRuntime {
     self->runtime = [SIMASRuntime runtime];
     [self->runtime registerLibrary:[SIMASStandardLibrary class] withPrefix:@""];
@@ -78,8 +71,18 @@
     [self->runtime setOutputter:self forMethod:@selector(printOutput:)];
     [self->runtime setErrorOutputter:self forMethod:@selector(printError:)];
     [self->runtime setInputter:self forMethod:@selector(takeUserInput)];
-    [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(stopProgram:) name:@"ProgramHasEnded" object:self->runtime];
-    [self parkRuntime];
+    [self->runtime setEnding:self forMethod:@selector(stopProgram)];
+relapse:
+    [self->runtimeConditional lock];
+    while (!self->isRunning) [self->runtimeConditional wait];
+    if (self->fileContents) {
+        [[self->runner retain] invoke];
+        [self->runner release];
+        self->runner = nil;
+    }
+    else [self stopProgram];
+    [self->runtimeConditional unlock];
+    goto relapse; // prevent the stack from building over time by immediately jumping back and waiting, rather than reinvoking after program exit. essentially a spinlock but tastier
 }
 
 - (instancetype)init {
@@ -133,31 +136,26 @@
     return YES;
 }
 
-- (void)programStarter {
+- (void)startProgram {
+    [self->runtimeConditional lock];
     self.output.string = @"";
     self.errors.string = @"";
     self.input.stringValue = @"";
-    [self saveDocument:self];
     self.toggleSwitch.title = @"stop that shit bruh";
-}
-
-- (void)startProgram {
-    [self->runtimeConditional lock];
-    [self performSelectorOnMainThread:@selector(programStarter) withObject:nil waitUntilDone:YES];
     self->runner = [NSInvocation invocationWithMethodSignature:[self->runtime methodSignatureForSelector:@selector(runFromString:)]];
     [self->runner setTarget:self->runtime];
     [self->runner setSelector:@selector(runFromString:)];
     [self->runner setArgument:&self->fileContents atIndex:2];
+    [self->runner retainArguments];
     self->isRunning = YES;
     [self->runtimeConditional signal];
     [self->runtimeConditional unlock];
 }
 
-- (void)stopProgram:(NSNotification*)notif {
+- (void)stopProgram {
     [self performSelectorOnMainThread:@selector(controlTextDidEndEditing:) withObject:nil waitUntilDone:YES];
     [self.toggleSwitch performSelectorOnMainThread:@selector(setTitle:) withObject:@"run that shit burh" waitUntilDone:NO];
     self->isRunning = NO;
-    [self parkRuntime];
 }
 
 - (IBAction)runTheProgram:(id)sender {
@@ -174,6 +172,7 @@
     [[NSNotificationCenter defaultCenter] removeObserver:self];
     [self->runtime release];
     [self->fileContents release];
+    [self->runner release];
     [self->_input release];
     [self->_output release];
     [self->_errors release];
