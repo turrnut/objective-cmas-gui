@@ -99,13 +99,148 @@ NSArray *tokeniseStringExcludingQuotes(NSString* str, NSCharacterSet* charSet) {
             if ([sliced count]) [objects addObjectsFromArray:sliced];
             [sliced release];
         } else {
-            [objects addObject:string];
+            [objects addObject:[NSString stringWithFormat:@"\"%@\"", string]];
         }
     }
     [quoted release];
     free(quoteIndexes);
     return [objects autorelease];
 }
+
+@implementation SIMASBlock
+- (id)init {
+    if ((self = [super init])) {
+        self->labels = [NSMutableDictionary new];
+        self->variables = [NSMutableDictionary new];
+    }
+    return self;
+}
+
++ (id)blockWithLocation:(NSRange)location {
+    SIMASBlock *block = [[self class] new];
+    block->location = location;
+    return block;
+}
+
++ (NSString*)identifier {
+    return nil;
+}
+
++ (BOOL)canBeNested {
+    return NO;
+}
+
+- (void)doThings:(NSArray *)args {
+    return;
+}
+
+- (void)addVariable:(SIMASVariable *)var forName:(NSString *)name {
+    [self->variables setObject:var forKey:name];
+}
+
+- (SIMASVariable*)getVar:(NSString *)name {
+    return [self->variables objectForKey:name];
+}
+
+- (void)end {
+    [SIMASRuntime currentProgram]->programCounter = (int)self->location.location;
+}
+@end
+
+@implementation SIMASArgument
++ (id)argumentForString:(NSString*)str {
+    SIMASArgument *arg = [SIMASArgument new];
+    double doubleTest = 0.0;
+    NSScanner *scan = [NSScanner scannerWithString:str];
+    arg->argument = [str copy];
+    if (![str length]) arg->classifier = SIMASArgumentGenericConstant;
+    else if ([[SIMASRuntime runtime]->registeredTypes objectForKey:[str lowercaseString]]) arg->classifier = SIMASArgumentTypeName;
+    else if ([[str lowercaseString] isEqualToString:@"in"]) arg->classifier = SIMASArgumentInput;
+    else if ([str length] > 1 && [str characterAtIndex:0] == '"' && [str characterAtIndex:([str length] - 1)] == '"') {
+        arg->classifier = SIMASArgumentString;
+        [arg->argument release];
+        arg->argument = [[str substringWithRange:NSMakeRange(1, [str length] - 2)] copy];
+    }
+    else if ([[str lowercaseString] isEqualToString:@"true"] || [[str lowercaseString] isEqualToString:@"false"]) arg->classifier = SIMASArgumentBoolean;
+    else if ([scan scanDouble:&doubleTest] && [scan isAtEnd]) arg->classifier = SIMASArgumentNumber;
+    else arg->classifier = SIMASArgumentVariableName;
+    return arg;
+}
++ (id)argumentForString:(NSString*)str fallback:(SIMASArgumentClassifier)fallback {
+    SIMASArgument *arg = [self argumentForString:str];
+    if (arg->classifier == SIMASArgumentVariableName) arg->classifier = [self standardClassification:fallback];
+    return arg;
+}
++ (id)argumentForString:(NSString*)str forOperation:(SIMASOperation*)op forIndex:(int)index {
+    SIMASArgument *arg = [SIMASArgument new];
+    arg->argument = [str copy];
+    arg->classifier = [self standardClassification:op->classifications[index]];
+    if (arg->classifier == SIMASArgumentString && [str length] > 1 && [str characterAtIndex:0] == '"' && [str characterAtIndex:([str length] - 1)] == '"') {
+        [arg->argument release]; arg->argument = [[str substringWithRange:NSMakeRange(1, [str length] - 2)] copy];
+    }
+    return arg;
+}
++ (SIMASArgumentClassifier)standardClassification:(SIMASArgumentClassifier)src {
+    return src ^ (src & (SIMASArgumentUseGeneric | SIMASArgumentUseThis | SIMASArgumentUseAsFallback | SIMASArgumentStrictMatch));
+}
++ (NSString*)nameForClassifier:(SIMASArgumentClassifier)classifier {
+    switch (classifier) {
+        case SIMASArgumentString: return @"string";
+        case SIMASArgumentNumber: return @"number";
+        case SIMASArgumentBoolean: return @"boolean";
+        case SIMASArgumentInput: return @"input";
+        case SIMASArgumentTypeName: return @"type";
+        case SIMASArgumentVariableName: return @"variable name";
+        case SIMASArgumentLabelName: return @"label name";
+        default: return @"generic constant";
+    }
+}
++ (NSString*)namesForClassifiers:(SIMASArgumentClassifier)classifiers {
+    SIMASArgumentClassifier current = 1;
+    NSMutableArray *objs = [NSMutableArray new];
+    NSMutableString *str = [[NSMutableString new] autorelease];
+    while (current < 256) {
+        if (current & classifiers) [objs addObject:[self nameForClassifier:current]];
+        current <<= 1;
+    }
+    for (int i = 0; i < [objs count]; i++) {
+        [str appendString:[objs objectAtIndex:i]];
+        if (i + 2 == [objs count]) [str appendString:@", or "];
+        else if (i + 1 < [objs count]) [str appendString:@", "];
+    }
+    return str;
+}
+- (NSString*)string {
+    return self->argument;
+}
+- (SIMASArgumentClassifier)classification {
+    return self->classifier;
+}
+- (void)dealloc {
+    [self->argument release];
+    [super dealloc];
+}
+- (NSMethodSignature*)methodSignatureForSelector:(SEL)selector {
+    if (![self respondsToSelector:selector] && [self->argument respondsToSelector:selector]) return [self->argument methodSignatureForSelector:selector];
+    else return [super methodSignatureForSelector:selector];
+}
+- (void)forwardInvocation:(NSInvocation *)anInvocation {
+    if ([self->argument respondsToSelector:[anInvocation selector]]) [anInvocation invokeWithTarget:self->argument];
+    else [super forwardInvocation:anInvocation];
+}
+
+- (NSUInteger)length { // change this to int on older shit
+    return [self->argument length];
+}
+
+- (unichar)characterAtIndex:(NSUInteger)index { // same here
+    return [self->argument characterAtIndex:index];
+}
+
+- (void)getCharacters:(unichar *)buffer range:(NSRange)range {
+    [self->argument getCharacters:buffer range:range];
+}
+@end
 
 @implementation SIMASOperation
 - (id)init {
@@ -131,6 +266,14 @@ NSArray *tokeniseStringExcludingQuotes(NSString* str, NSCharacterSet* charSet) {
 - (void)setMaxArgs:(int)maximum { maximumArguments = maximum; }
 - (void)setMinArgs:(int)minimum { minimumArguments = minimum; }
 - (void)setArgRange:(int)minimum toMaximum:(int)maximum { minimumArguments = minimum; maximumArguments = maximum; };
+- (void)setArgClassifiers:(SIMASArgumentClassifier *)classifications {
+    self->classifications = malloc(sizeof(SIMASArgumentClassifier) * self->maximumArguments);
+    memcpy(self->classifications, classifications, sizeof(SIMASArgumentClassifier) * self->maximumArguments);
+}
+- (void)dealloc {
+    free(self->classifications);
+    [super dealloc];
+}
 @end
 
 @implementation SIMASInstruction
@@ -141,7 +284,28 @@ NSArray *tokeniseStringExcludingQuotes(NSString* str, NSCharacterSet* charSet) {
 }
 + (id)instructionFromOperation:(SIMASOperation*)op withArguments:(NSArray*)arguments {
     SIMASInstruction *newInstruction = [self instructionFromOperation:op];
-    newInstruction->arguments = [arguments copy];
+    NSMutableArray *args = [NSMutableArray new];
+    for (int i = 0, count = (int)[arguments count]; i < count; i++) {
+        SIMASArgumentClassifier classification = op->classifications ? op->classifications[i] : 0;
+        SIMASArgument *arg = nil;
+        switch (classification & (SIMASArgumentUseGeneric | SIMASArgumentUseThis | SIMASArgumentUseAsFallback)) {
+            case SIMASArgumentUseThis:
+                arg = [SIMASArgument argumentForString:[arguments objectAtIndex:i] forOperation:op forIndex:i];
+                break;
+            case SIMASArgumentUseAsFallback:
+                arg = [SIMASArgument argumentForString:[arguments objectAtIndex:i] fallback:classification];
+                break;
+            default:
+            case SIMASArgumentUseGeneric:
+                arg = [SIMASArgument argumentForString:[arguments objectAtIndex:i]];
+                break;
+        }
+        [args addObject:arg];
+        [arg release];
+        if (classification & SIMASArgumentStrictMatch && !([arg classification] & [SIMASArgument standardClassification:classification])) [SIMASRuntime throwException:@"BadArgument" withReason:[NSString stringWithFormat:@"At index %d, received argument of %@, expected argument of %@", i, [SIMASArgument nameForClassifier:[arg classification]], [SIMASArgument namesForClassifiers:[SIMASArgument standardClassification:classification]]] withSnideRemark:@"Perhaps read the documentation next time?"];
+    }
+    newInstruction->arguments = [args copy];
+    [args release];
     return newInstruction;
 }
 
@@ -283,6 +447,7 @@ NSArray *tokeniseStringExcludingQuotes(NSString* str, NSCharacterSet* charSet) {
         instruction->prefix = [prefix retain];
         int argCount = (int)[string count];
         [string release];
+        if ([[SIMASRuntime runtime] isExcepted]) return nil;
         if (argCount > operation->maximumArguments && operation->maximumArguments >= 0) {
             [SIMASRuntime throwException:@"IllegalArgumentCount"
                               withReason:[NSString stringWithFormat:@"The provided instruction cointains too many arguments (maximum %d, got %d) for instruction %@", operation->maximumArguments, argCount, instruction->name]
@@ -307,9 +472,10 @@ NSArray *tokeniseStringExcludingQuotes(NSString* str, NSCharacterSet* charSet) {
     [tokens addObject:name];
     [tokens addObjectsFromArray:arguments];
     while ([tokens count]) {
+        BOOL isArgument = [[tokens objectAtIndex:0] isKindOfClass:[SIMASArgument class]];
         NSString *token = [tokens objectAtIndex:0];
         [tokens removeObjectAtIndex:0];
-        BOOL wrapInQuotes = [[token componentsSeparatedByCharactersInSet:[NSCharacterSet whitespaceAndNewlineCharacterSet]] count] > 1;
+        BOOL wrapInQuotes = isArgument && [(SIMASArgument*)token classification] == SIMASArgumentString;
         if (wrapInQuotes) [fullInstruction appendString:@"\""];
         [fullInstruction appendString:token];
         if (wrapInQuotes) [fullInstruction appendString:@"\""];

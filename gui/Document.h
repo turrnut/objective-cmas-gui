@@ -28,5 +28,6 @@
 @property (nonatomic, copy) NSString* userInput;
 
 - (IBAction)runTheProgram:(id)sender;
+- (void)stopProgram;
 @end
 

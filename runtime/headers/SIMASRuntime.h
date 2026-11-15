@@ -41,8 +41,38 @@ NSString *formatEscapes(NSString*);
 NSString *unformatEscapes(NSString*);
 NSArray *tokeniseStringExcludingQuotes(NSString*, NSCharacterSet*);
 
+typedef enum {
+    SIMASArgumentNumber = 1,
+    SIMASArgumentBoolean = 2,
+    SIMASArgumentString = 4,
+    SIMASArgumentTypeName = 8,
+    SIMASArgumentVariableName = 16,
+    SIMASArgumentLabelName = 32,
+    SIMASArgumentInput = 64,
+    SIMASArgumentGenericConstant = 128,
+    SIMASArgumentUseAsFallback = 256, // tells the parser to autoeval, but use this as the fallback
+    SIMASArgumentUseGeneric = 512, // tells the parser to autoeval, and use the default generic
+    SIMASArgumentUseThis = 1024, // tells the parser to use EXACTLY this
+    SIMASArgumentStrictMatch = 2048
+} SIMASArgumentClassifier;
+
 @protocol SIMASLibrary <NSObject>
 + (void)registerToSIMAS:(NSString*)prefix;
+@end
+
+@interface SIMASBlock : NSObject {
+    NSMutableDictionary *variables;
+    NSMutableDictionary *labels;
+    NSRange location;
+}
+
++ (id)blockWithLocation:(NSRange)location;
++ (NSString*)identifier; // fun, loop
++ (BOOL)canBeNested;
+- (void)doThings:(NSArray*)args;
+- (void)addVariable:(SIMASVariable*)var forName:(NSString*)name;
+- (SIMASVariable*)getVar:(NSString*)name;
+- (void)end;
 @end
 
 @interface SIMASOperation : NSObject {
@@ -52,12 +82,28 @@ NSArray *tokeniseStringExcludingQuotes(NSString*, NSCharacterSet*);
     SEL (*selectorGetter)(void); // optional, but reccommended if using targetGetter
     int minimumArguments;
     int maximumArguments;
+    SIMASArgumentClassifier *classifications;
 }
 + (SIMASOperation*)makeWithFunction:(void (*)(id, SEL, NSArray*))func;
 + (SIMASOperation*)makeWithFunction:(void (*)(id, SEL, NSArray*))func withTargetGetter:(id (*)(NSArray*))target andSelectorGetter:(SEL (*)(void))selector;
 - (void)setMaxArgs:(int)maximum;
 - (void)setMinArgs:(int)minimum;
 - (void)setArgRange:(int)minimum toMaximum:(int)maximum;
+- (void)setArgClassifiers:(SIMASArgumentClassifier*)classifications; // give a malloc'd or stack alloc'd. size must match maxArgs
+@end
+
+@interface SIMASArgument : NSString { // a parse-time way of telling a function what is here
+    NSString *argument;
+    SIMASArgumentClassifier classifier;
+}
++ (id)argumentForString:(NSString*)str; // auto-classifies
++ (id)argumentForString:(NSString*)str fallback:(SIMASArgumentClassifier)fallback; // what to fall back to, in case it's not a recognised one
++ (id)argumentForString:(NSString*)str forOperation:(SIMASOperation*)op forIndex:(int)index;
++ (SIMASArgumentClassifier)standardClassification:(SIMASArgumentClassifier)src;
++ (NSString*)nameForClassifier:(SIMASArgumentClassifier)classifier;
++ (NSString*)namesForClassifiers:(SIMASArgumentClassifier)classifiers;
+- (NSString*)string;
+- (SIMASArgumentClassifier)classification;
 @end
 
 @interface SIMASInstruction : NSObject {
@@ -70,6 +116,7 @@ NSArray *tokeniseStringExcludingQuotes(NSString*, NSCharacterSet*);
 + (id)instructionFromOperation:(SIMASOperation*)op;
 + (id)instructionFromOperation:(SIMASOperation*)op withArguments:(NSArray*)arguments;
 + (NSMutableArray*)parseInstructionsFromString:(NSString*)string;
++ (void)preprocessBlocks:(NSMutableArray*)instructions;
 + (void)preprocessImports:(NSMutableArray*)instructions;
 + (NSMutableDictionary*)preprocessLabels:(NSMutableArray*)instructions;
 - (BOOL)isFunction:(SIMASFUNCTYPE)function;
@@ -95,13 +142,16 @@ NSArray *tokeniseStringExcludingQuotes(NSString*, NSCharacterSet*);
     id outputter;
     id errorer;
     id inputter;
+    id ending;
     SEL outputSelector;
     SEL errorSelector;
     SEL inputSelector;
+    SEL endingSelector;
 @public
     NSMutableDictionary *registeredClasses;
     NSMutableDictionary *registeredOperations;
     NSMutableDictionary *registeredTypes; // types like num, bool, str are the keys, the classes are the values
+    NSMutableDictionary *registeredBlocks;
 }
 
 + (SIMASRuntime*)runtime;
@@ -118,11 +168,13 @@ NSArray *tokeniseStringExcludingQuotes(NSString*, NSCharacterSet*);
 - (void)registerLibrary:(Class)libraryClass withPrefix:(NSString*)prefix;
 - (void)registerOperation:(SIMASOperation*)operation withName:(NSString*)name withPrefix:(NSString*)prefix;
 - (void)registerType:(Class)type withName:(NSString*)name;
+- (void)registerBlock:(Class)block;
 - (void)executeInstructions:(NSArray*)instructions; // runs instructions DURING the program, but does not insert itself into the program. some functions may work wrongly/improperly, as these are not preprocessed by default
 - (void)runFromString:(NSString*)string; // does all the setup for you
 - (void)setOutputter:(id)theOutputter forMethod:(SEL)method;
 - (void)setErrorOutputter:(id)theOutputter forMethod:(SEL)method;
 - (void)setInputter:(id)theInputter forMethod:(SEL)method;
+- (void)setEnding:(id)theEnding forMethod:(SEL)method;
 - (void)print:(NSString*)string;
 - (void)printError:(NSString*)string;
 - (void)quitProgram;

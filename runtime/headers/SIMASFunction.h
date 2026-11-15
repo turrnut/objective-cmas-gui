@@ -11,6 +11,7 @@
 //  my family
 
 #import <Foundation/Foundation.h>
+#import "SIMASRuntime.h"
 
 @interface SIMASFunction : NSObject {
 @public
@@ -20,7 +21,7 @@
 + (void)registerFunction:(NSArray*)args;
 @end
 
-@interface SIMASStackFrame : NSObject {
+@interface SIMASStackFrame : SIMASBlock {
     @public SIMASFunction *function;
     @protected NSArray *passedArgs; int returnTo;
 }

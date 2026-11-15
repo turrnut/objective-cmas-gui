@@ -38,7 +38,7 @@
 #import "SIMASFunction.h"
 
 static BOOL eatShitIfArgIsInput(NSArray *args, int arg) {
-    if ([[[args objectAtIndex:arg] lowercaseString] isEqualToString:@"in"]) {
+    if ([[args objectAtIndex:arg] classification] == SIMASArgumentInput) {
         [SIMASRuntime throwException:@"IllegalValue" withReason:@"You cannot assign a value to the 'in' variable."];
         return YES;
     }
@@ -180,13 +180,17 @@ SIMASFUNC(setVar) {
 }
 
 SIMASFUNC(consolePrint) {
-    SIMASVariable *var = SIMASGETVARIABLEWITHARGUMENT(0);
-    if (!var) { [SIMASRuntime throwException:@"NonexistentVariable" withReason:[NSString stringWithFormat:@"Variable %@ does not exist, and the function which you are using it from does not implicitly create variables.", [args objectAtIndex:0]]]; return; }
-    [[SIMASRuntime runtime] print:[[var data] toString]];
+    if ([[args objectAtIndex:0] classification] == SIMASArgumentVariableName) {
+        SIMASVariable *var = SIMASGETVARIABLEWITHARGUMENT(0);
+        if (!var) { [SIMASRuntime throwException:@"NonexistentVariable" withReason:[NSString stringWithFormat:@"Variable %@ does not exist, and the function which you are using it from does not implicitly create variables.", [args objectAtIndex:0]]]; return; }
+        [[SIMASRuntime runtime] print:[[var data] toString]];
+    } else {
+        [[SIMASRuntime runtime] print:[[args objectAtIndex:0] string]];
+    }
 }
 
 SIMASFUNC(consolePrintc) {
-    [[SIMASRuntime runtime] print:[args objectAtIndex:0]];
+    consolePrint(self, _cmd, args);
 }
 
 SIMASFUNC(consolePrints) {
@@ -350,112 +354,162 @@ SIMASFUNC(xchg) {
     NSAutoreleasePool *pool = [NSAutoreleasePool new];
     SIMASRuntime *runtime = [SIMASRuntime runtime]; // yeee optimisation
     SIMASOperation *thing;
+    SIMASArgumentClassifier *types = NULL;
+    // set
     thing = [SIMASOperation makeWithFunction:setVar];
     [thing setArgRange:2 toMaximum:3];
+    types = (SIMASArgumentClassifier[]){
+        SIMASArgumentTypeName | SIMASArgumentInput | SIMASArgumentStrictMatch,
+        SIMASArgumentVariableName | SIMASArgumentUseGeneric | SIMASArgumentStrictMatch,
+        SIMASArgumentVariableName | SIMASArgumentNumber | SIMASArgumentBoolean | SIMASArgumentString | SIMASArgumentStrictMatch
+    };
+    [thing setArgClassifiers:types];
     [runtime registerOperation:thing withName:@"set" withPrefix:@""];
+    // print
     thing = [SIMASOperation makeWithFunction:consolePrint];
     [thing setArgRange:1 toMaximum:1];
+    types = (SIMASArgumentClassifier[]){ SIMASArgumentString | SIMASArgumentVariableName | SIMASArgumentStrictMatch };
+    [thing setArgClassifiers:types];
     [runtime registerOperation:thing withName:@"print" withPrefix:@""];
+    // printc
     thing = [SIMASOperation makeWithFunction:consolePrintc];
     [thing setArgRange:1 toMaximum:1];
+    types = (SIMASArgumentClassifier[]){ SIMASArgumentString | SIMASArgumentStrictMatch };
+    [thing setArgClassifiers:types];
     [runtime registerOperation:thing withName:@"printc" withPrefix:@""];
+    // println / prints
     [runtime registerOperation:[SIMASOperation makeWithFunction:consolePrintln] withName:@"println" withPrefix:@""];
     [runtime registerOperation:[SIMASOperation makeWithFunction:consolePrints] withName:@"prints" withPrefix:@""];
     
+    // math
+    // add
     thing = [SIMASOperation makeWithFunction:SIMASGETFUNCTION([SIMASArithmetic class], @selector(add:)) withTargetGetter:SIMASCLASSMETHODNAME(SIMASArithmetic) andSelectorGetter:nullSelector];
     [thing setArgRange:3 toMaximum:3];
     [runtime registerOperation:thing withName:@"add" withPrefix:@""];
+    // sub
     thing = [SIMASOperation makeWithFunction:SIMASGETFUNCTION([SIMASArithmetic class], @selector(subtract:)) withTargetGetter:SIMASCLASSMETHODNAME(SIMASArithmetic) andSelectorGetter:nullSelector];
     [thing setArgRange:3 toMaximum:3];
     [runtime registerOperation:thing withName:@"sub" withPrefix:@""];
+    // mul
     thing = [SIMASOperation makeWithFunction:SIMASGETFUNCTION([SIMASArithmetic class], @selector(multiply:)) withTargetGetter:SIMASCLASSMETHODNAME(SIMASArithmetic) andSelectorGetter:nullSelector];
     [thing setArgRange:3 toMaximum:3];
     [runtime registerOperation:thing withName:@"mul" withPrefix:@""];
+    // div
     thing = [SIMASOperation makeWithFunction:SIMASGETFUNCTION([SIMASArithmetic class], @selector(divide:)) withTargetGetter:SIMASCLASSMETHODNAME(SIMASArithmetic) andSelectorGetter:nullSelector];
     [thing setArgRange:3 toMaximum:3];
     [runtime registerOperation:thing withName:@"div" withPrefix:@""];
     
+    // comparisons
+    // gt
     thing = [SIMASOperation makeWithFunction:functionsOfComparison withTargetGetter:nullTarget andSelectorGetter:SIMASSELECTORMETHODNAME(gt)];
     [thing setArgRange:3 toMaximum:3];
     [runtime registerOperation:thing withName:@"gt" withPrefix:@""];
+    // gte
     thing = [SIMASOperation makeWithFunction:functionsOfComparison withTargetGetter:nullTarget andSelectorGetter:SIMASSELECTORMETHODNAME(gte)];
     [thing setArgRange:3 toMaximum:3];
     [runtime registerOperation:thing withName:@"gte" withPrefix:@""];
+    // st
     thing = [SIMASOperation makeWithFunction:functionsOfComparison withTargetGetter:nullTarget andSelectorGetter:SIMASSELECTORMETHODNAME(st)];
     [thing setArgRange:3 toMaximum:3];
     [runtime registerOperation:thing withName:@"st" withPrefix:@""];
+    // ste
     thing = [SIMASOperation makeWithFunction:functionsOfComparison withTargetGetter:nullTarget andSelectorGetter:SIMASSELECTORMETHODNAME(ste)];
     [thing setArgRange:3 toMaximum:3];
     [runtime registerOperation:thing withName:@"ste" withPrefix:@""];
     
+    // or
     thing = [SIMASOperation makeWithFunction:SIMASGETFUNCTION([SIMASComparison class], @selector(logicalOr:)) withTargetGetter:SIMASCLASSMETHODNAME(SIMASComparison) andSelectorGetter:nullSelector];
     [thing setArgRange:3 toMaximum:3];
     [runtime registerOperation:thing withName:@"or" withPrefix:@""];
+    // nor
     thing = [SIMASOperation makeWithFunction:SIMASGETFUNCTION([SIMASComparison class], @selector(logicalNor:)) withTargetGetter:SIMASCLASSMETHODNAME(SIMASComparison) andSelectorGetter:nullSelector];
     [thing setArgRange:3 toMaximum:3];
     [runtime registerOperation:thing withName:@"nor" withPrefix:@""];
+    // xor
     thing = [SIMASOperation makeWithFunction:SIMASGETFUNCTION([SIMASComparison class], @selector(logicalXor:)) withTargetGetter:SIMASCLASSMETHODNAME(SIMASComparison) andSelectorGetter:nullSelector];
     [thing setArgRange:3 toMaximum:3];
     [runtime registerOperation:thing withName:@"xor" withPrefix:@""];
+    // and
     thing = [SIMASOperation makeWithFunction:SIMASGETFUNCTION([SIMASComparison class], @selector(logicalAnd:)) withTargetGetter:SIMASCLASSMETHODNAME(SIMASComparison) andSelectorGetter:nullSelector];
     [thing setArgRange:3 toMaximum:3];
     [runtime registerOperation:thing withName:@"and" withPrefix:@""];
+    // nand
     thing = [SIMASOperation makeWithFunction:SIMASGETFUNCTION([SIMASComparison class], @selector(logicalNand:)) withTargetGetter:SIMASCLASSMETHODNAME(SIMASComparison) andSelectorGetter:nullSelector];
     [thing setArgRange:3 toMaximum:3];
     [runtime registerOperation:thing withName:@"nand" withPrefix:@""];
     
+    // eqc
     thing = [SIMASOperation makeWithFunction:equalityOfConst withTargetGetter:nullTarget andSelectorGetter:nullSelector];
     [thing setArgRange:3 toMaximum:3];
     [runtime registerOperation:thing withName:@"eqc" withPrefix:@""];
+    // eqv
     thing = [SIMASOperation makeWithFunction:equalityOfVars withTargetGetter:nullTarget andSelectorGetter:nullSelector];
     [thing setArgRange:3 toMaximum:3];
     [runtime registerOperation:thing withName:@"eqv" withPrefix:@""];
+    // neqc
     thing = [SIMASOperation makeWithFunction:inequalityOfConst withTargetGetter:nullTarget andSelectorGetter:nullSelector];
     [thing setArgRange:3 toMaximum:3];
     [runtime registerOperation:thing withName:@"neqc" withPrefix:@""];
+    // neqv
     thing = [SIMASOperation makeWithFunction:inequalityOfVars withTargetGetter:nullTarget andSelectorGetter:nullSelector];
     [thing setArgRange:3 toMaximum:3];
     [runtime registerOperation:thing withName:@"neqv" withPrefix:@""];
     
+    // odds n ends
+    // type
     thing = [SIMASOperation makeWithFunction:varType];
     [thing setArgRange:2 toMaximum:2];
     [runtime registerOperation:thing withName:@"type" withPrefix:@""];
+    // conv
     thing = [SIMASOperation makeWithFunction:conversion];
     [thing setArgRange:2 toMaximum:2];
     [runtime registerOperation:thing withName:@"conv" withPrefix:@""];
+    // copy
     thing = [SIMASOperation makeWithFunction:copying];
     [thing setArgRange:2 toMaximum:2];
     [runtime registerOperation:thing withName:@"copy" withPrefix:@""];
+    // xchg
     thing = [SIMASOperation makeWithFunction:xchg];
     [thing setArgRange:2 toMaximum:2];
     [runtime registerOperation:thing withName:@"xchg" withPrefix:@""];
+    // ptr
     thing = [SIMASOperation makeWithFunction:pointationNotation];
     [thing setArgRange:2 toMaximum:2];
     [runtime registerOperation:thing withName:@"ptr" withPrefix:@""];
+    // not
     thing = [SIMASOperation makeWithFunction:negationProctation];
     [thing setArgRange:1 toMaximum:1];
     [runtime registerOperation:thing withName:@"not" withPrefix:@""];
     
+    // control flow
+    // jump
     thing = [SIMASOperation makeWithFunction:jump];
     [thing setArgRange:1 toMaximum:1];
     [runtime registerOperation:thing withName:@"jump" withPrefix:@""];
+    // jumpv
     thing = [SIMASOperation makeWithFunction:jumpButConditionally];
     [thing setArgRange:2 toMaximum:2];
     [runtime registerOperation:thing withName:@"jumpv" withPrefix:@""];
+    // jumpnv
     thing = [SIMASOperation makeWithFunction:jumpButConditionallyButNot];
     [thing setArgRange:2 toMaximum:2];
     [runtime registerOperation:thing withName:@"jumpnv" withPrefix:@""];
 
+    // file i/o
+    // read
     thing = [SIMASOperation makeWithFunction:ebook];
     [thing setArgRange:2 toMaximum:2];
     [runtime registerOperation:thing withName:@"read" withPrefix:@""];
+    // write
     thing = [SIMASOperation makeWithFunction:macwrite];
     [thing setArgRange:2 toMaximum:2];
     [runtime registerOperation:thing withName:@"write" withPrefix:@""];
+    // writev
     thing = [SIMASOperation makeWithFunction:macwritev2];
     [thing setArgRange:2 toMaximum:2];
     [runtime registerOperation:thing withName:@"writev" withPrefix:@""];
     
+    // quit
     thing = [SIMASOperation makeWithFunction:quit];
     [thing setMaxArgs:0];
     [runtime registerOperation:thing withName:@"quit" withPrefix:@""];

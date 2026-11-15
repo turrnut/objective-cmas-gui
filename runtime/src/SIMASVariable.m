@@ -90,6 +90,7 @@
     SIMASVariable *newVar;
     if ((newVar = [self findVariable:name])) return newVar;
     if ([name characterAtIndex:0] == '$' || [[SIMASRuntime runtime] isExcepted]) { [SIMASRuntime throwException:@"IllegalName" withReason:@"Names starting with '$' are reserved by the SIMAS runtime."]; return nil; }
+    if ([[SIMASRuntime runtime]->registeredTypes objectForKey:[name lowercaseString]]) { [SIMASRuntime throwException:@"IllegalName" withReason:@"Variable names cannot be the same as a type."]; return nil; }
     newVar = [[SIMASVariable new] autorelease];
     [[SIMASRuntime currentProgram]->variables setObject:newVar forKey:name];
     return newVar;
