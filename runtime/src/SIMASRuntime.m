@@ -393,7 +393,7 @@ static void allocateRuntime() {
         registeredTypes = [NSMutableDictionary new];
         registeredOperations = [NSMutableDictionary new];
         NSAutoreleasePool *pool = [NSAutoreleasePool new];
-        [SIMASBoolean registerToRuntime]; // evil shitty code that automatically calls [SIMASRuntime runtime] would create infinite loop without theRealRuntime indirection and sentinel and kill the fucking stack before the runtime even spawns into existence
+        [SIMASBoolean registerToRuntime]; 
         [SIMASNumber registerToRuntime];
         [SIMASString registerToRuntime];
         SIMASOperation *thing;
