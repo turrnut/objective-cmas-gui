@@ -67,6 +67,7 @@
 - (SIMASData*)copy;
 + (SIMASData*)fromString:(NSString*)string; // you HAVE to be able to make literals from strings, so like. yeah
 - (NSString*)toString; // you also need to make into a string cause like, you need to print to the console n shit. or list serialisation
++ (long long)classification;
 @end
 
 @interface SIMASVariable : NSObject {

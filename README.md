@@ -43,13 +43,12 @@ but also has its own superset of features & instructions.<br>
 The same applies to CMAS and Objective-CMAS, behaviour and instructions have changed, and it should not be assumed that one will behave like the other.
 
 #### Known CMAS-only features (excluding instructions):
-* Type coersion - For operations like `ADD`, not all operands need to be `num` type, as their values will be coerced into `num`-compatible values.
-* Type assignment - For operations like `ADD`, rather than OPERAND 1 always being `num`, you can set it to any type, and the resulting value of the operation
-will be coerced into that new type & assigned to OPERAND 2.
+* Type coersion - For operations like `ADD`, not all operands need to be `num` type, as their values will be coerced into `num`-compatible values. (note: not all instructions support this. `ADD`, for example, still requires the second operand be a number if you're using a constant rather than a variable name.)
+* Type assignment - For operations like `ADD`, rather than OPERAND 1 always being `num`, you can set it to any type, and the resulting value of the operation will be coerced into that new type & assigned to OPERAND 2.
 * Indexing w/ vars - When indexing a list, CMAS supports indexing using pre-existing vars. This is not supported in SIMASJS as of writing this.
 * ***VERY IMPORTANT!*** Lists passed by value - When calling / returning a function, lists in CMAS are passed by VALUE, not reference. This is different from SIMASJS,
 and MUST be kept in mind if attempting to write cross-compatible programs.
-* String Literals - In CMAS, String Literals are required to be wrapped in quotation marks (`"`), whilst SIMASJS does not hold this requirement. 
+* String Literals - In CMAS, String Literals are required to be wrapped in quotation marks (`"`), whilst SIMASJS does not hold this requirement. (an error will be thrown if a string literal is not in quotes when expected, or you may get unexpected results)
 * CMAS is whitespace-insensitive for tokenisation, so instructions may be split by multiple spaces, lines, etc. This differs from SIMASJS, which requires EXACTLY one space per token.
 * CMAS supports calling functions from within functions, which is NOT supported by SIMASJS and will often lead to an infinite loop of execution.
 * CMAS supports chaining certain instructions, such as `LIST APPC`, allowing you to save lines (and memory) by simply chaining instructions instead of having many independent function calls.

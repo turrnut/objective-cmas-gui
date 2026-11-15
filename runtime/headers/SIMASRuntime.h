@@ -41,20 +41,20 @@ NSString *formatEscapes(NSString*);
 NSString *unformatEscapes(NSString*);
 NSArray *tokeniseStringExcludingQuotes(NSString*, NSCharacterSet*);
 
-typedef enum {
+typedef NS_ENUM(long long, SIMASArgumentClassifier) {
     SIMASArgumentNumber = 1,
     SIMASArgumentBoolean = 2,
     SIMASArgumentString = 4,
-    SIMASArgumentTypeName = 8,
+    SIMASArgumentTypeName = 8, // the best thing now is i don't have to validate if a type exists since it's done at parse time
     SIMASArgumentVariableName = 16,
-    SIMASArgumentLabelName = 32,
-    SIMASArgumentInput = 64,
-    SIMASArgumentGenericConstant = 128,
+    SIMASArgumentInput = 32,
+    SIMASArgumentGenericConstant = 64,
+    SIMASArgumentThing = 128,
     SIMASArgumentUseAsFallback = 256, // tells the parser to autoeval, but use this as the fallback
     SIMASArgumentUseGeneric = 512, // tells the parser to autoeval, and use the default generic
     SIMASArgumentUseThis = 1024, // tells the parser to use EXACTLY this
     SIMASArgumentStrictMatch = 2048
-} SIMASArgumentClassifier;
+};
 
 @protocol SIMASLibrary <NSObject>
 + (void)registerToSIMAS:(NSString*)prefix;
@@ -104,6 +104,7 @@ typedef enum {
 + (NSString*)namesForClassifiers:(SIMASArgumentClassifier)classifiers;
 - (NSString*)string;
 - (SIMASArgumentClassifier)classification;
+- (SIMASData*)createData;
 @end
 
 @interface SIMASInstruction : NSObject {
@@ -157,9 +158,9 @@ typedef enum {
 + (SIMASRuntime*)runtime;
 + (SIMASProgram*)currentProgram;
 + (NSString*)userInput;
-+ (void)throwException:(NSString*)exception withReason:(NSString*)reason;
-+ (void)throwException:(NSString*)exception withReason:(NSString*)reason withSnideRemark:(NSString*)remark;
-+ (void)throwException:(NSString*)exception withReason:(NSString*)reason withInstruction:(SIMASInstruction*)instruction;
++ (id)throwException:(NSString*)exception withReason:(NSString*)reason; // nil so you can return it as nil itself
++ (id)throwException:(NSString*)exception withReason:(NSString*)reason withSnideRemark:(NSString*)remark;
++ (id)throwException:(NSString*)exception withReason:(NSString*)reason withInstruction:(SIMASInstruction*)instruction;
 
 // there must be a class method named "registerToSIMAS:". this removes itself on program end. prefix may not be nil, but may be "" if you want it to be root-level (no prefix).
 // the prefix is provided for you in the "utilising" (utilising [bundle] as [prefix]).

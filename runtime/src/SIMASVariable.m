@@ -89,8 +89,10 @@
 + (SIMASVariable*)makeVariable:(NSString*)name {
     SIMASVariable *newVar;
     if ((newVar = [self findVariable:name])) return newVar;
-    if ([name characterAtIndex:0] == '$' || [[SIMASRuntime runtime] isExcepted]) { [SIMASRuntime throwException:@"IllegalName" withReason:@"Names starting with '$' are reserved by the SIMAS runtime."]; return nil; }
-    if ([[SIMASRuntime runtime]->registeredTypes objectForKey:[name lowercaseString]]) { [SIMASRuntime throwException:@"IllegalName" withReason:@"Variable names cannot be the same as a type."]; return nil; }
+    if ([name characterAtIndex:0] == '$' || [[SIMASRuntime runtime] isExcepted]) return [SIMASRuntime throwException:@"IllegalName" withReason:@"Names starting with '$' are reserved by the SIMAS runtime."];
+    if ([[SIMASRuntime runtime]->registeredTypes objectForKey:[name lowercaseString]]) return [SIMASRuntime throwException:@"IllegalName" withReason:@"Variable names cannot be the same as a type."];
+    if ([[name lowercaseString] isEqualToString:@"true"] || [[name lowercaseString] isEqualToString:@"false"]) return [SIMASRuntime throwException:@"IllegalName" withReason:@"Variable names cannot be \"true\" or \"false\"." withSnideRemark:@"Why on god's green earth does this have to be a rule? 'Cause fragile parsing rules :)"];
+    if ([[name lowercaseString] isEqualToString:@"in"]) return [SIMASRuntime throwException:@"IllegalName" withReason:@"The \"in\" variable name is reserved by SIMAS for input."];
     newVar = [[SIMASVariable new] autorelease];
     [[SIMASRuntime currentProgram]->variables setObject:newVar forKey:name];
     return newVar;
@@ -215,6 +217,10 @@
 - (BOOL)isEqualTo:(SIMASData*)object { return [[object getConverted:[SIMASBoolean class]] boolValue] == [self boolValue]; }
 + (SIMASData*)fromString:(NSString*)string { return [self booleanWithString:string]; }
 - (NSString*)toString { return [self boolValue] ? @"true" : @"false"; }
+
++ (long long)classification {
+    return SIMASArgumentBoolean;
+}
 @end
 
 @implementation SIMASString
@@ -260,6 +266,10 @@
 - (BOOL)isEqualTo:(SIMASData*)object { return [[[object getConverted:[SIMASString class]] stringValue] isEqualToString:[self stringValue]]; }
 + (SIMASData*)fromString:(NSString*)string { return [self stringWithString:string]; }
 - (NSString*)toString { return self->data; }
+
++ (long long)classification {
+    return SIMASArgumentString;
+}
 @end
 
 @implementation SIMASNumber
@@ -310,6 +320,10 @@
 - (BOOL)isEqualTo:(SIMASData*)object { return [[object getConverted:[SIMASNumber class]] doubleValue] == [self doubleValue]; }
 + (SIMASData*)fromString:(NSString *)string { return [self numberWithString:string]; }
 - (NSString*)toString { return [[NSNumber numberWithDouble:[self doubleValue]] stringValue]; }
+
++ (long long)classification {
+    return SIMASArgumentNumber;
+}
 @end
 
 @implementation SIMASBooleanToSIMASNumber

@@ -189,9 +189,8 @@ NSArray *tokeniseStringExcludingQuotes(NSString* str, NSCharacterSet* charSet) {
         case SIMASArgumentNumber: return @"number";
         case SIMASArgumentBoolean: return @"boolean";
         case SIMASArgumentInput: return @"input";
-        case SIMASArgumentTypeName: return @"type";
+        case SIMASArgumentTypeName: return @"type name";
         case SIMASArgumentVariableName: return @"variable name";
-        case SIMASArgumentLabelName: return @"label name";
         default: return @"generic constant";
     }
 }
@@ -199,7 +198,7 @@ NSArray *tokeniseStringExcludingQuotes(NSString* str, NSCharacterSet* charSet) {
     SIMASArgumentClassifier current = 1;
     NSMutableArray *objs = [NSMutableArray new];
     NSMutableString *str = [[NSMutableString new] autorelease];
-    while (current < 256) {
+    while (current < SIMASArgumentThing) {
         if (current & classifiers) [objs addObject:[self nameForClassifier:current]];
         current <<= 1;
     }
@@ -227,6 +226,14 @@ NSArray *tokeniseStringExcludingQuotes(NSString* str, NSCharacterSet* charSet) {
 - (void)forwardInvocation:(NSInvocation *)anInvocation {
     if ([self->argument respondsToSelector:[anInvocation selector]]) [anInvocation invokeWithTarget:self->argument];
     else [super forwardInvocation:anInvocation];
+}
+- (SIMASData*)createData {
+    switch (self->classifier) {
+        case SIMASArgumentBoolean: return [SIMASBoolean booleanWithString:self->argument];
+        case SIMASArgumentNumber: return [SIMASNumber numberWithString:self->argument];
+        case SIMASArgumentString: return [SIMASString stringWithString:self->argument];
+        default: return nil;
+    }
 }
 
 - (NSUInteger)length { // change this to int on older shit
@@ -302,7 +309,7 @@ NSArray *tokeniseStringExcludingQuotes(NSString* str, NSCharacterSet* charSet) {
         }
         [args addObject:arg];
         [arg release];
-        if (classification & SIMASArgumentStrictMatch && !([arg classification] & [SIMASArgument standardClassification:classification])) [SIMASRuntime throwException:@"BadArgument" withReason:[NSString stringWithFormat:@"At index %d, received argument of %@, expected argument of %@", i, [SIMASArgument nameForClassifier:[arg classification]], [SIMASArgument namesForClassifiers:[SIMASArgument standardClassification:classification]]] withSnideRemark:@"Perhaps read the documentation next time?"];
+        if (classification & SIMASArgumentStrictMatch && !([arg classification] & [SIMASArgument standardClassification:classification])) [SIMASRuntime throwException:@"BadArgument" withReason:[NSString stringWithFormat:@"At index %d, received argument of %@, expected argument of %@. %@", i, [SIMASArgument nameForClassifier:[arg classification]], [SIMASArgument namesForClassifiers:[SIMASArgument standardClassification:classification]], (classification & SIMASArgumentTypeName) ? @"Please note that if you were trying to use a type name, the type you're looking for may not be registered." : @""] withSnideRemark:@"Perhaps read the documentation next time? Actual skill issue, btw"]; // holy fuck
     }
     newInstruction->arguments = [args copy];
     [args release];
@@ -418,11 +425,11 @@ NSArray *tokeniseStringExcludingQuotes(NSString* str, NSCharacterSet* charSet) {
         if (![string count]) { [string release]; continue; }
         SIMASOperation *operation;
         if ([[[string objectAtIndex:0] lowercaseString] isEqualToString:@"utilising"]) {
-            if ([string count] == 3) [SIMASRuntime throwException:@"IllegalArgumentCount"
-                                                       withReason:[NSString stringWithFormat:@"The provided instruction does not contain enough arguments (either 2 or 4, got 3) for instruction utilise."]
+            if ([string count] == 2) [SIMASRuntime throwException:@"IllegalArgumentCount"
+                                                       withReason:[NSString stringWithFormat:@"The provided instruction does not contain enough arguments (either 1 or 3, got 2) for instruction utilise."]
                                                   withSnideRemark:@"like... utilising it as WHAT, buddy? \"as\" and then jack shit doesn't tell me ANYTHING i need to know, after all"];
             NSString *libName = [string objectAtIndex:1];
-            NSString *prefix = [string count] == 4 && [[[string objectAtIndex:2] lowercaseString] isEqualToString:@"as"] ? [string objectAtIndex:3] : @"";
+            NSString *prefix = [string count] == 3 && [[[string objectAtIndex:1] lowercaseString] isEqualToString:@"as"] ? [string objectAtIndex:2] : @"";
             NSBundle *bundle = [NSBundle bundleWithPath:libName];
             if (bundle && ![[SIMASRuntime runtime] isExcepted]) [[SIMASRuntime runtime] loadLibrary:bundle withPrefix:[prefix lowercaseString]];
             [string release];
@@ -445,7 +452,7 @@ NSArray *tokeniseStringExcludingQuotes(NSString* str, NSCharacterSet* charSet) {
         SIMASInstruction *instruction = [SIMASInstruction instructionFromOperation:operation withArguments:string];
         instruction->name = [name retain];
         instruction->prefix = [prefix retain];
-        int argCount = (int)[string count];
+        int argCount = (int)[instruction->arguments count];
         [string release];
         if ([[SIMASRuntime runtime] isExcepted]) return nil;
         if (argCount > operation->maximumArguments && operation->maximumArguments >= 0) {
@@ -613,7 +620,7 @@ static void allocateRuntime() {
     return [[self runtime]->inputter performSelector:[self runtime]->inputSelector];
 }
 
-+ (void)throwException:(NSString*)exception withReason:(NSString*)reason {
++ (id)throwException:(NSString*)exception withReason:(NSString*)reason {
     SIMASRuntime *theRuntime = [SIMASRuntime runtime];
     SIMASProgram *program = [SIMASRuntime currentProgram];
     theRuntime->exceptionOccurred = YES;
@@ -623,15 +630,18 @@ static void allocateRuntime() {
     puts("");
     [[self runtime] printError:[NSString stringWithFormat:@"A %@ exception occurred: %@", exception, reason]];
     if (theInstruction) [[self runtime] printError:[NSString stringWithFormat:@"Faulty code: %@", [theInstruction stringValue]]];
+    return nil;
 }
-+ (void)throwException:(NSString*)exception withReason:(NSString*)reason withInstruction:(SIMASInstruction*)instruction {
++ (id)throwException:(NSString*)exception withReason:(NSString*)reason withInstruction:(SIMASInstruction*)instruction {
     SIMASRuntime *theRuntime = [SIMASRuntime runtime];
     theRuntime->exceptionOccurred = YES;
     [[self runtime] printError:[NSString stringWithFormat:@"A %@ exception occurred: %@\nFaulty code: %@", exception, reason, [instruction stringValue]]];
+    return nil;
 }
-+ (void)throwException:(NSString *)exception withReason:(NSString *)reason withSnideRemark:(NSString*)remark {
++ (id)throwException:(NSString *)exception withReason:(NSString *)reason withSnideRemark:(NSString*)remark {
     [self throwException:exception withReason:reason];
     [[self runtime] printError:[NSString stringWithFormat:@"The person who wrote the code that triggered this exception to save you from your own stupidity would also like to say: %@.", remark]];
+    return nil;
 }
 - (void)quitProgram {
     self->exceptionOccurred = YES; // shit way of doing it, but this flag does indeed kill the app so
@@ -714,7 +724,7 @@ static void allocateRuntime() {
     self->inputSelector = method;
 }
 
--(void)setEnding:(id)theEnding forMethod:(SEL)method {
+- (void)setEnding:(id)theEnding forMethod:(SEL)method {
     self->ending = theEnding;
     self->endingSelector = method;
 }

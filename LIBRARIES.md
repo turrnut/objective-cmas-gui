@@ -15,3 +15,5 @@ If you have any library dependencies you want loaded in, you can use `[[SIMASRun
 Then, all you need to do is compile your class into a .bundle (make sure to set your code to use dynamic symbol lookup so there's not duplicate symbols!) and you're done!
 
 A good example of a library would be `SIMASList`, where you could completely separate it into its own .bundle, and it would still function (as long as it's linked correctly).
+
+A word of note: custom-defined types do not play nicely with the argument-checking system (in terms of checking for a variable constant/whatevs). Be warned.

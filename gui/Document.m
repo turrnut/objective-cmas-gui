@@ -24,7 +24,7 @@
 }
 
 - (void)printError:(NSString*)str {
-    self.errors.string = [self.errors.string stringByAppendingString:str];
+    self.errors.string = [self.errors.string stringByAppendingString:[str stringByAppendingString:@"\n"]];
     [self.output scrollToEndOfDocument:nil];
 }
 

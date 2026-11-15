@@ -242,10 +242,10 @@ Note: All comparison operators will OVERWRITE the FIRST variable passed in. Plea
 
 #### - print
 * print something to the console.
-* OPERAND 1: The name of the variable which the information is stored
+* OPERAND 1: The name of the variable which the information is stored OR a string constant (wrapped in quotes).
 
 #### - printc
-* print a constant to the console.
+* print a constant to the console. (does NOT accept variables)
 * OPERAND 1: The constant being printed
 
 #### - println
