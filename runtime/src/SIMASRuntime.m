@@ -32,14 +32,14 @@ SIMASFUNC(utiliseNop) { return; }
 
 NSString *formatEscapes(NSString* str) {
     NSMutableString *string = [[str mutableCopy] autorelease];
-    NSArray *formats = [NSArray arrayWithObjects:@"\\\"", @"\"", @"\\n", @"\n", @"\\\t", @"\t", @"\\;", @";", @"\\r", @"\r", @"\\\\", @"\\", nil];
+    NSArray *formats = [NSArray arrayWithObjects:@"\\\"", @"\"", @"\\n", @"\n", @"\\t", @"\t", @"\\r", @"\r", @"\\\\", @"\\", nil];
     for (int i = 0; i < [formats count]; i += 2) [string replaceOccurrencesOfString:[formats objectAtIndex:i] withString:[formats objectAtIndex:i + 1] options:NSLiteralSearch range:NSMakeRange(0, [string length])];
     return string;
 }
 
 NSString *unformatEscapes(NSString* str) {
     NSMutableString *string = [[str mutableCopy] autorelease];
-    NSArray *formats = [NSArray arrayWithObjects:@"\\\\", @"\\", @"\\\"", @"\"", @"\\n", @"\n", @"\\\t", @"\t", @"\\;", @";", @"\\r", @"\r", nil];
+    NSArray *formats = [NSArray arrayWithObjects:@"\\\\", @"\\", @"\\\"", @"\"", @"\\n", @"\n", @"\\t", @"\t", @"\\r", @"\r", nil];
     for (int i = 0; i < [formats count]; i += 2) [string replaceOccurrencesOfString:[formats objectAtIndex:i + 1] withString:[formats objectAtIndex:i] options:NSLiteralSearch range:NSMakeRange(0, [string length])];
     return string;
 }
@@ -379,18 +379,28 @@ NSArray *tokeniseStringExcludingQuotes(NSString* str, NSCharacterSet* charSet) {
 + (NSMutableArray*)parseInstructionsFromString:(NSString*)string {
     NSMutableArray *instructionStrings = [NSMutableArray new];
     NSMutableString *buffer = [string mutableCopy];
-    while ([string length]) { // ah shit this ends up being essentially while true XD it works tho so fuck it we ball
+    while ([buffer length]) {
         NSRange rangeOfInstruction = [buffer rangeOfString:@";"];
         if (rangeOfInstruction.location == NSNotFound) break;
         NSAutoreleasePool *pool = [NSAutoreleasePool new];
         NSMutableString *instruction = [[NSMutableString new] autorelease];
-        while (rangeOfInstruction.location > 0 && [buffer characterAtIndex:(rangeOfInstruction.location - 1)] == '\\') {
-            rangeOfInstruction.length = rangeOfInstruction.location + 1;
-            rangeOfInstruction.location = 0;
-            [instruction appendString:[buffer substringWithRange:rangeOfInstruction]];
-            [buffer deleteCharactersInRange:rangeOfInstruction];
-            rangeOfInstruction = [buffer rangeOfString:@";"];
-        }
+        BOOL inQuotes = NO;
+        do {
+            int backslashStreak = 0;
+            for (int i = 0; i < rangeOfInstruction.location; i++) {
+                unichar character = [buffer characterAtIndex:i];
+                if (character == '"' && !(backslashStreak % 2)) inQuotes = !inQuotes;
+                if (character == '\\') ++backslashStreak;
+                else backslashStreak = 0;
+            }
+            if (inQuotes) {
+                rangeOfInstruction.length = rangeOfInstruction.location + 1;
+                rangeOfInstruction.location = 0;
+                [instruction appendString:[buffer substringWithRange:rangeOfInstruction]];
+                [buffer deleteCharactersInRange:rangeOfInstruction];
+                rangeOfInstruction = [buffer rangeOfString:@";"];
+            }
+        } while (inQuotes && [buffer length]);
         rangeOfInstruction.length = rangeOfInstruction.location;
         rangeOfInstruction.location = 0;
         if ([buffer length] < rangeOfInstruction.length) { [pool release]; break; }
