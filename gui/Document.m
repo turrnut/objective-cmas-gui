@@ -5,6 +5,15 @@
 //  Created by Xander Gomez on 11/13/26.
 //  Copyright © 2026 Xander Gomez. All rights reserved.
 //
+//  Fake
+//  I'm just a puppet in your play
+//  You pull the strings and I obey, high
+//  That oxytocin hit me just right, yeah
+//  It's counterfeit
+//  Zombie, zombie, could it be a hex?
+//  Got me, got me, you took another victim
+//  Mercy, mercy, put me in check
+//  With your [threads] wrapped 'round my [lock]
 
 #import "Document.h"
 #import "SIMASRuntime.h"
@@ -12,10 +21,6 @@
 #import "SIMASList.h"
 #import <objc/runtime.h>
 #import <pthread.h>
-
-@interface Document ()
-
-@end
 
 @implementation Document
 - (void)printOutput:(NSString*)str {
@@ -52,6 +57,27 @@
     self.input.enabled = NO;
 }
 
+- (void)clearHighlighting {
+    NSTextStorage *storage = self.content.textStorage;
+    [storage beginEditing];
+    [storage removeAttribute:NSBackgroundColorAttributeName range:NSMakeRange(0, [storage length])];
+    [storage endEditing];
+    self->highlightedRange = (NSRange){0};
+}
+
+- (void)highlightInstruction:(NSRange)range {
+    NSTextStorage *storage = self.content.textStorage;
+    [storage beginEditing];
+    [storage removeAttribute:NSBackgroundColorAttributeName range:self->highlightedRange];
+    [storage addAttribute:NSBackgroundColorAttributeName value:[NSColor colorWithRed:1 green:1 blue:0 alpha:0.75] range:range];
+    self->highlightedRange = range;
+    [storage endEditing];
+}
+
+- (void)highlightInstructionValue:(NSValue*)value {
+    [self highlightInstruction:[value rangeValue]];
+}
+
 - (NSString*)takeUserInput {
     NSString *str = nil;
     [self->inputConditional lock];
@@ -66,13 +92,24 @@
     return str;
 }
 
-- (void)highlightInstruction:(NSValue*)range {
-    if ([self.highlightSwitch state] == NSControlStateValueOn) [self.content showFindIndicatorForRange:[range rangeValue]];
+- (void)instructionFailed:(NSNotification*)notif {
+    [self performSelectorOnMainThread:@selector(highlightInstructionValue:) withObject:[NSValue valueWithRange:((SIMASInstruction*)[[notif userInfo] objectForKey:@"instruction"])->rangeOfInstruction] waitUntilDone:NO];
 }
 
-- (void)instructionDidExecute:(NSNotification*)notif {
-    [self.programCounter performSelectorOnMainThread:@selector(setStringValue:) withObject:[NSString stringWithFormat:@"Program Counter: %d", [SIMASRuntime currentProgram]->programCounter] waitUntilDone:NO];
-    [self performSelectorOnMainThread:@selector(highlightInstruction:) withObject:[NSValue valueWithRange:((SIMASInstruction*)[[notif userInfo] objectForKey:@"instruction"])->rangeOfInstruction] waitUntilDone:YES];
+- (void)instructionDidExecute:(id)notif {
+    if (!pthread_main_np()) {
+        [[notif userInfo] setObject:[SIMASRuntime currentProgram] forKey:@"program"];
+        [self performSelectorOnMainThread:_cmd withObject:notif waitUntilDone:YES];
+        return;
+    }
+    if ([self.highlightSwitch state] == NSControlStateValueOn) {
+        NSMutableDictionary *info = [notif userInfo];
+        self.programCounter.stringValue = [NSString stringWithFormat:@"Program Counter: %d", ((SIMASProgram*)[info objectForKey:@"program"])->programCounter];
+        [self highlightInstruction:((SIMASInstruction*)[info objectForKey:@"instruction"])->rangeOfInstruction];
+    } else {
+        self.programCounter.stringValue = @"Program Counter: ";
+        if (!NSEqualRanges(self->highlightedRange, (NSRange){0})) [self clearHighlighting];
+    }
 }
 
 - (CGFloat)splitView:(NSSplitView *)splitView constrainMinCoordinate:(CGFloat)proposedMinimumPosition ofSubviewAt:(NSInteger)dividerIndex {
@@ -105,6 +142,7 @@
     [self->runtime setInputter:self forMethod:@selector(takeUserInput)];
     [self->runtime setEnding:self forMethod:@selector(stopProgram)];
     [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(instructionDidExecute:) name:@"InstructionExecuted" object:self->runtime];
+    [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(instructionFailed:) name:@"InstructionFailed" object:self->runtime];
 relapse:
     [self->runtimeConditional lock];
     while (!self->isRunning) [self->runtimeConditional wait];
@@ -197,6 +235,7 @@ relapse:
     [self->runner retainArguments];
     if (self->isPaused) self.stepButton.enabled = YES;
     self.programCounter.stringValue = @"Program Counter: ";
+    [self clearHighlighting];
     self->isRunning = YES;
     [self->runtimeConditional signal];
     [self->runtimeConditional unlock];
@@ -210,7 +249,10 @@ relapse:
 }
 
 - (IBAction)runTheProgram:(id)sender {
-    if (self->isRunning) [self->runtime quitProgram]; // tis not a threading violation since the code that actually checks the raised flag is still running on the OTHER thread.
+    if (self->isRunning) {
+        [self->runtime quitProgram]; // tis not a threading violation since the code that actually checks the raised flag is still running on the OTHER thread.
+        [self clearHighlighting];
+    }
     else [self startProgram];
 }
 

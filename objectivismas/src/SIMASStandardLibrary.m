@@ -37,14 +37,6 @@
 #import "SIMASVariable.h"
 #import "SIMASFunction.h"
 
-static BOOL eatShitIfArgIsInput(NSArray *args, int arg) {
-    if ([[args objectAtIndex:arg] classification] == SIMASArgumentInput) {
-        [SIMASRuntime throwException:@"IllegalValue" withReason:@"You cannot assign a value to the 'in' variable."];
-        return YES;
-    }
-    return NO;
-}
-
 typedef struct {
     SIMASVariable *firstVariable, *secondVariable;
     double firstOperand, secondOperand;
@@ -70,12 +62,11 @@ typedef struct {
     SIMASBooleanOperationSetup setup;
     setup.firstVariable = nil;
     setup.secondVariable = nil;
-    if (eatShitIfArgIsInput(args, 1)) return setup;
     SIMASVariable *first = [SIMASVariable findVariable:[args objectAtIndex:1]];
     if (first == nil) return setup; // error handling is downstream
     SIMASVariable *secondVar = [SIMASVariable findVariable:[args objectAtIndex:2]];
     BOOL firstOperand, secondOperand;
-    if (secondVar == nil) secondOperand = [[args objectAtIndex:2] boolValue];
+    if (secondVar == nil) secondOperand = [[[args objectAtIndex:2] string] boolValue];
     else secondOperand = [[[secondVar data] getConverted:[SIMASBoolean class]] boolValue];
     firstOperand = [[[first data] getConverted:[SIMASBoolean class]] boolValue];
     setup.firstVariable = first;
@@ -123,7 +114,6 @@ typedef struct {
     setup.secondVariable = nil;
     
     double firstOperand, secondOperand;
-    if (eatShitIfArgIsInput(args, 1)) return setup;
     SIMASVariable *first = [SIMASVariable findVariable:[args objectAtIndex:1]];
     
     if (first == nil) return setup; // error handling downstream
@@ -208,7 +198,6 @@ SIMASSELECTORMETHOD(st, @selector(lessThan:))
 SIMASSELECTORMETHOD(ste, @selector(lessThanOrEqualTo:))
 
 SIMASFUNC(functionsOfComparison) {
-    if (eatShitIfArgIsInput(args, 1)) return;
     SIMASNumberOperationSetup setup = [SIMASArithmetic setupOperation:args];
     if (!SIMASGETTYPEWITHARGUMENT(0)) { [SIMASRuntime throwException:@"NonexistentType" withReason:[NSString stringWithFormat:@"Type %@ does not exist, thus cannot be used to convert.", [args objectAtIndex:0]]]; return; }
     if (!setup.firstVariable) { [SIMASRuntime throwException:@"NonexistentVariable" withReason:[NSString stringWithFormat:@"Variable %@ does not exist, and the function which you are using it from does not implicitly create variables.", [args objectAtIndex:1]]]; return; }
@@ -219,30 +208,26 @@ SIMASFUNC(functionsOfComparison) {
 }
 
 SIMASFUNC(negationProctation) {
-    if (eatShitIfArgIsInput(args, 0)) return;
     SIMASVariable *variable = SIMASGETVARIABLEWITHARGUMENT(0);
     if (!variable) { [SIMASRuntime throwException:@"NonexistentVariable" withReason:[NSString stringWithFormat:@"Variable %@ does not exist, and the function which you are using it from does not implicitly create variables.", [args objectAtIndex:0]]]; return; }
     [variable setData:[SIMASBoolean booleanWithBoolean:![[variable data] getConverted:[SIMASBoolean class]]]];
 }
 
 SIMASFUNC(equalityOfConst) {
-    if (eatShitIfArgIsInput(args, 1)) return;
     SIMASVariable *variable1 = SIMASGETVARIABLEWITHARGUMENT(1);
     if (!variable1) { [SIMASRuntime throwException:@"NonexistentVariable" withReason:[NSString stringWithFormat:@"Variable %@ does not exist, and the function which you are using it from does not implicitly create variables.", [args objectAtIndex:1]]]; return; }
     Class type = SIMASGETTYPEWITHARGUMENT(0);
     if (!type) { [SIMASRuntime throwException:@"NonexistentType" withReason:[NSString stringWithFormat:@"Type %@ does not exist, thus cannot be used to convert.", [args objectAtIndex:0]]]; return; }
-    SIMASData *variable2 = [type fromString:[args objectAtIndex:2]];
+    SIMASData *variable2 = [type fromString:[[args objectAtIndex:2] string]];
     [variable1 setData:[SIMASBoolean booleanWithBoolean:([[[variable1 data] getConverted:type] isEqualTo:variable2])]];
 }
 
 SIMASFUNC(inequalityOfConst) {
-    if (eatShitIfArgIsInput(args, 1)) return;
     equalityOfConst(self, _cmd, args);
     negationProctation(self, _cmd, [NSArray arrayWithObject:[args objectAtIndex:1]]);
 }
 
 SIMASFUNC(equalityOfVars) {
-    if (eatShitIfArgIsInput(args, 1)) return;
     SIMASVariable *variable1 = SIMASGETVARIABLEWITHARGUMENT(1);
     SIMASVariable *variable2 = [SIMASVariable findVariable:[args objectAtIndex:2]];
     if (!variable1 || !variable2) {
@@ -255,7 +240,6 @@ SIMASFUNC(equalityOfVars) {
 }
 
 SIMASFUNC(inequalityOfVars) {
-    if (eatShitIfArgIsInput(args, 1)) return;
     equalityOfVars(self, _cmd, args);
     negationProctation(self, _cmd, [NSArray arrayWithObject:[args objectAtIndex:1]]);
 }
@@ -267,7 +251,6 @@ SIMASFUNC(varType) {
 }
 
 SIMASFUNC(conversion) {
-    if (eatShitIfArgIsInput(args, 0)) return;
     SIMASVariable *variable1 = SIMASGETVARIABLEWITHARGUMENT(0);
     Class type = SIMASGETTYPEWITHARGUMENT(1);
     if (!variable1) { [SIMASRuntime throwException:@"NonexistentVariable" withReason:[NSString stringWithFormat:@"Variable %@ does not exist, and the function which you are using it from does not implicitly create variables.", [args objectAtIndex:0]]]; return; }
@@ -276,14 +259,12 @@ SIMASFUNC(conversion) {
 }
 
 SIMASFUNC(copying) {
-    if (eatShitIfArgIsInput(args, 1)) return;
     SIMASVariable *variable1 = SIMASGETVARIABLEWITHARGUMENT(0);
     if (!variable1) { [SIMASRuntime throwException:@"NonexistentVariable" withReason:[NSString stringWithFormat:@"Variable %@ does not exist, and the function which you are using it from does not implicitly create variables.", [args objectAtIndex:0]]]; return; }
     [[SIMASVariable makeVariable:[args objectAtIndex:1]] setData:[[[variable1 data] copy] autorelease]];
 }
 
 SIMASFUNC(pointationNotation) {
-    if (eatShitIfArgIsInput(args, 0)) return;
     SIMASVariable *variable1 = SIMASGETVARIABLEWITHARGUMENT(0);
     NSString* name = [args objectAtIndex:1];
     if (!variable1 || [name characterAtIndex:0] == '$' || [[args objectAtIndex:0] characterAtIndex:0] == '$') { [SIMASRuntime throwException:@"IllegalName" withReason:@"Variable names cannot start with '$' (reserved)."]; return; }
@@ -308,28 +289,27 @@ SIMASFUNC(jumpButConditionally) {
 }
 
 SIMASFUNC(jumpButConditionallyButNot) {
-    NSNumber *jump = [[SIMASRuntime currentProgram]->labels objectForKey:[args objectAtIndex:0]];
-    if (!jump) { [SIMASRuntime throwException:@"NonexistentLabel" withReason:[NSString stringWithFormat:@"Label %@ does not exist, and hence cannot be jumped to.", [args objectAtIndex:0]]]; return; }
+    NSNumber *jump = [[SIMASRuntime currentProgram]->labels objectForKey:[[args objectAtIndex:0] string]];
+    if (!jump) { [SIMASRuntime throwException:@"NonexistentLabel" withReason:[NSString stringWithFormat:@"Label %@ does not exist, and hence cannot be jumped to.", [[args objectAtIndex:0] string]]]; return; }
     SIMASVariable *condition = SIMASGETVARIABLEWITHARGUMENT(1);
-    if (!condition) { [SIMASRuntime throwException:@"NonexistentVariable" withReason:[NSString stringWithFormat:@"Variable %@ does not exist, and the function which you are using it from does not implicitly create variables.", [args objectAtIndex:1]]]; return; }
+    if (!condition) { [SIMASRuntime throwException:@"NonexistentVariable" withReason:[NSString stringWithFormat:@"Variable %@ does not exist, and the function which you are using it from does not implicitly create variables.", [[args objectAtIndex:1] string]]]; return; }
     if (![[[condition data] getConverted:[SIMASBoolean class]] boolValue])[SIMASRuntime currentProgram]->programCounter = [jump intValue];
 }
 
 SIMASFUNC(ebook) {
-    if (eatShitIfArgIsInput(args, 1)) return;
-    NSString *data = [NSString stringWithContentsOfFile:[args objectAtIndex:0] encoding:NSASCIIStringEncoding error:nil];
+    NSString *data = [NSString stringWithContentsOfFile:[[args objectAtIndex:0] string] encoding:NSASCIIStringEncoding error:nil];
     if (!data) { [SIMASRuntime throwException:@"ReadError" withReason:[NSString stringWithFormat:@"File %@ failed to read.", [args objectAtIndex:0]]]; return; }
-    [[SIMASVariable makeVariable:[args objectAtIndex:1]] setData:[SIMASString stringWithString:data]];
+    [[SIMASVariable makeVariable:[[args objectAtIndex:1] string]] setData:[SIMASString stringWithString:data]];
 }
 
 SIMASFUNC(macwrite) {
-    [[args objectAtIndex:1] writeToFile:[args objectAtIndex:0] atomically:YES encoding:NSASCIIStringEncoding error:nil];
+    [[[args objectAtIndex:1] string] writeToFile:[[args objectAtIndex:0] string] atomically:YES encoding:NSASCIIStringEncoding error:nil];
 }
 
 SIMASFUNC(macwritev2) {
     SIMASVariable *data = SIMASGETVARIABLEWITHARGUMENT(1);
     if (!data) { [SIMASRuntime throwException:@"NonexistentVariable" withReason:[NSString stringWithFormat:@"Variable %@ does not exist, and the function which you are using it from does not implicitly create variables.", [args objectAtIndex:1]]]; return; }
-    [[[data data] toString] writeToFile:[args objectAtIndex:0] atomically:YES encoding:NSASCIIStringEncoding error:nil];
+    [[[data data] toString] writeToFile:[[args objectAtIndex:0] string] atomically:YES encoding:NSASCIIStringEncoding error:nil];
 }
 
 SIMASFUNC(quit) {
@@ -337,10 +317,9 @@ SIMASFUNC(quit) {
 }
 
 SIMASFUNC(xchg) {
-    if (eatShitIfArgIsInput(args, 0) || eatShitIfArgIsInput(args, 1)) return;
     SIMASVariable *var1 = SIMASGETVARIABLEWITHARGUMENT(0), *var2 = SIMASGETVARIABLEWITHARGUMENT(1);
-    if (!var1) { [SIMASRuntime throwException:@"NonexistentVariable" withReason:[NSString stringWithFormat:@"Variable %@ does not exist, and the function which you are using it from does not implicitly create variables.", [args objectAtIndex:0]]]; return; }
-    if (!var2) { [SIMASRuntime throwException:@"NonexistentVariable" withReason:[NSString stringWithFormat:@"Variable %@ does not exist, and the function which you are using it from does not implicitly create variables.", [args objectAtIndex:1]]]; return; }
+    if (!var1) { [SIMASRuntime throwException:@"NonexistentVariable" withReason:[NSString stringWithFormat:@"Variable %@ does not exist, and the function which you are using it from does not implicitly create variables.", [[args objectAtIndex:0] string]]]; return; }
+    if (!var2) { [SIMASRuntime throwException:@"NonexistentVariable" withReason:[NSString stringWithFormat:@"Variable %@ does not exist, and the function which you are using it from does not implicitly create variables.", [[args objectAtIndex:1] string]]]; return; }
     SIMASData *temp = [[var2 data] retain];
     [var2 setData:[var1 data]];
     [var1 setData:temp];
@@ -554,17 +533,28 @@ SIMASFUNC(xchg) {
     [runtime registerOperation:thing withName:@"not" withPrefix:@""];
     
     // control flow
+    types = (SIMASArgumentClassifier[]){
+        SIMASArgumentVariableName | SIMASArgumentStrictMatch
+    };
     // jump
     thing = [SIMASOperation makeWithFunction:jump];
     [thing setArgRange:1 toMaximum:1];
+    [thing setArgClassifiers:types];
     [runtime registerOperation:thing withName:@"jump" withPrefix:@""];
+    // conditional jumps
+    types = (SIMASArgumentClassifier[]){
+        SIMASArgumentVariableName | SIMASArgumentStrictMatch,
+        SIMASArgumentVariableName | SIMASArgumentStrictMatch
+    };
     // jumpv
     thing = [SIMASOperation makeWithFunction:jumpButConditionally];
     [thing setArgRange:2 toMaximum:2];
+    [thing setArgClassifiers:types];
     [runtime registerOperation:thing withName:@"jumpv" withPrefix:@""];
     // jumpnv
     thing = [SIMASOperation makeWithFunction:jumpButConditionallyButNot];
     [thing setArgRange:2 toMaximum:2];
+    [thing setArgClassifiers:types];
     [runtime registerOperation:thing withName:@"jumpnv" withPrefix:@""];
 
     // file i/o

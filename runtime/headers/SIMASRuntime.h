@@ -34,8 +34,8 @@
 #define SIMASGETFUNCTION(object, selector) (SIMASFUNCTYPE)[object methodForSelector:selector]
 #define SIMASGETINSTANCEFUNCTION(object, selector) (SIMASFUNCTYPE)[object instanceMethodForSelector:selector]
 
-#define SIMASGETVARIABLEWITHARGUMENT(argument) [SIMASVariable findVariable:[args objectAtIndex:argument]] // convenience macro
-#define SIMASGETTYPEWITHARGUMENT(argument) [[SIMASRuntime runtime]->registeredTypes objectForKey:[[args objectAtIndex:argument] lowercaseString]]
+#define SIMASGETVARIABLEWITHARGUMENT(argument) [SIMASVariable findVariable:[[args objectAtIndex:argument] string]] // convenience macro
+#define SIMASGETTYPEWITHARGUMENT(argument) [[SIMASRuntime runtime]->registeredTypes objectForKey:[[[args objectAtIndex:argument] string] lowercaseString]]
 
 extern pthread_key_t conversionKey;
 
@@ -69,7 +69,7 @@ typedef NS_ENUM(long long, SIMASArgumentClassifier) {
 }
 
 + (id)blockWithLocation:(NSRange)location;
-+ (NSString*)identifier; // fun, loop
++ (NSString*)identifier; // fun
 + (BOOL)canBeNested;
 - (void)doThings:(NSArray*)args;
 - (void)addVariable:(SIMASVariable*)var forName:(NSString*)name;
