@@ -24,6 +24,7 @@
 #import "SIMASVariable.h"
 #import "SIMASRuntime.h"
 #import "SIMASFunction.h"
+#import <pthread.h>
 
 @implementation SIMASConversion
 + (Class)sourceType { return nil; }
@@ -47,8 +48,14 @@
 }
 
 + (NSMutableDictionary*)allowedConversions {
-    static NSMutableDictionary* conversions = nil;
-    if (conversions == nil) conversions = [NSMutableDictionary new]; // leaks technically but eh who the fuck cares, it'll die with the rest of the program at the end of the app lifecycle anyway
+    NSMutableDictionary* thing = (NSMutableDictionary*)pthread_getspecific(conversionKey);
+    if (!thing) pthread_setspecific(conversionKey, (thing = (void*)[NSMutableDictionary new]));
+    NSMutableDictionary* conversions = [thing objectForKey:[self class]];
+    if (conversions == nil) {
+        conversions = [NSMutableDictionary new]; // leaks technically but- oh wait no, the runtime now destroys it with it because threading :D
+        [thing setObject:conversions forKey:(id<NSCopying>)[self class]];
+        [conversions release];
+    }
     return conversions;
 }
 

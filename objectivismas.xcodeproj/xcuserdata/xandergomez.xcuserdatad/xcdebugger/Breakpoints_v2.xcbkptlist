@@ -170,7 +170,7 @@
             ignoreCount = "0"
             continueAfterRunningActions = "No"
             filePath = "objectivismas/src/main.m"
-            timestampString = "816477431.434258"
+            timestampString = "816490189.152665"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
             startingLineNumber = "58"
@@ -186,11 +186,11 @@
             ignoreCount = "0"
             continueAfterRunningActions = "No"
             filePath = "runtime/src/SIMASRuntime.m"
-            timestampString = "816477431.43437"
+            timestampString = "816490189.152773"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "354"
-            endingLineNumber = "354"
+            startingLineNumber = "356"
+            endingLineNumber = "356"
             landmarkName = "+preprocessImports:"
             landmarkType = "7">
          </BreakpointContent>
@@ -202,11 +202,11 @@
             ignoreCount = "0"
             continueAfterRunningActions = "No"
             filePath = "runtime/src/SIMASRuntime.m"
-            timestampString = "816477431.4354"
+            timestampString = "816490189.153013"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "405"
-            endingLineNumber = "405"
+            startingLineNumber = "401"
+            endingLineNumber = "401"
             landmarkName = "+parseInstructionsFromString:"
             landmarkType = "7">
          </BreakpointContent>
@@ -218,12 +218,28 @@
             ignoreCount = "0"
             continueAfterRunningActions = "No"
             filePath = "runtime/src/SIMASRuntime.m"
-            timestampString = "816477431.43585"
+            timestampString = "816490189.153107"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "406"
-            endingLineNumber = "406"
+            startingLineNumber = "402"
+            endingLineNumber = "402"
             landmarkName = "+parseInstructionsFromString:"
+            landmarkType = "7">
+         </BreakpointContent>
+      </BreakpointProxy>
+      <BreakpointProxy
+         BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
+         <BreakpointContent
+            shouldBeEnabled = "No"
+            ignoreCount = "0"
+            continueAfterRunningActions = "No"
+            filePath = "runtime/src/SIMASVariable.m"
+            timestampString = "816490189.153199"
+            startingColumnNumber = "9223372036854775807"
+            endingColumnNumber = "9223372036854775807"
+            startingLineNumber = "58"
+            endingLineNumber = "58"
+            landmarkName = "+allowedConversions"
             landmarkType = "7">
          </BreakpointContent>
       </BreakpointProxy>

@@ -9,7 +9,7 @@
 #import <Cocoa/Cocoa.h>
 #import "SIMASRuntime.h"
 
-@interface Document : NSDocument <NSTextViewDelegate, NSTextFieldDelegate> {
+@interface Document : NSDocument <NSTextViewDelegate, NSTextFieldDelegate, NSSplitViewDelegate> {
     NSString *fileContents;
     SIMASRuntime *runtime;
     
@@ -18,6 +18,7 @@
     NSInvocation* runner;
     NSCondition* runtimeConditional;
     BOOL isRunning;
+    BOOL isPaused;
 }
 
 @property (nonatomic, retain) IBOutlet NSButton *toggleSwitch;
@@ -25,9 +26,18 @@
 @property (nonatomic, retain) IBOutlet NSTextView *errors;
 @property (nonatomic, retain) IBOutlet NSTextView *output;
 @property (nonatomic, retain) IBOutlet NSTextField *input;
+@property (nonatomic, retain) IBOutlet NSButton *highlightSwitch;
+@property (nonatomic, assign) IBOutlet NSSplitView *mainSplitView;
+@property (nonatomic, assign) IBOutlet NSSplitView *runtimeSplitView;
+@property (nonatomic, assign) IBOutlet NSSplitView *debugSplitView;
+@property (nonatomic, retain) IBOutlet NSTextField *programCounter;
+@property (nonatomic, retain) IBOutlet NSButton *pauseButton;
+@property (nonatomic, retain) IBOutlet NSButton *stepButton;
 @property (nonatomic, copy) NSString* userInput;
 
 - (IBAction)runTheProgram:(id)sender;
+- (IBAction)toggleProgram:(id)sender;
+- (IBAction)stepProgram:(id)sender;
 - (void)stopProgram;
 @end
 

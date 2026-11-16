@@ -25,7 +25,9 @@
 
 - (void)printError:(NSString*)str {
     self.errors.string = [self.errors.string stringByAppendingString:[str stringByAppendingString:@"\n"]];
-    [self.output scrollToEndOfDocument:nil];
+    [self.errors scrollToEndOfDocument:nil];
+    self.debugSplitView.hidden = NO;
+    [self.mainSplitView setPosition:(self.mainSplitView.bounds.size.height - 150.0f) ofDividerAtIndex:0];
 }
 
 - (void)controlTextDidEndEditing:(NSNotification *)obj {
@@ -64,6 +66,36 @@
     return str;
 }
 
+- (void)highlightInstruction:(NSValue*)range {
+    if ([self.highlightSwitch state] == NSControlStateValueOn) [self.content showFindIndicatorForRange:[range rangeValue]];
+}
+
+- (void)instructionDidExecute:(NSNotification*)notif {
+    [self.programCounter performSelectorOnMainThread:@selector(setStringValue:) withObject:[NSString stringWithFormat:@"Program Counter: %d", [SIMASRuntime currentProgram]->programCounter] waitUntilDone:NO];
+    [self performSelectorOnMainThread:@selector(highlightInstruction:) withObject:[NSValue valueWithRange:((SIMASInstruction*)[[notif userInfo] objectForKey:@"instruction"])->rangeOfInstruction] waitUntilDone:YES];
+}
+
+- (CGFloat)splitView:(NSSplitView *)splitView constrainMinCoordinate:(CGFloat)proposedMinimumPosition ofSubviewAt:(NSInteger)dividerIndex {
+    if (splitView == self.mainSplitView) return splitView.bounds.size.height - 150.0f;
+    else if (splitView == self.debugSplitView || splitView == self.runtimeSplitView) return 250.0f;
+    else return 0.0f;
+}
+
+- (CGFloat)splitView:(NSSplitView *)splitView constrainMaxCoordinate:(CGFloat)proposedMaximumPosition ofSubviewAt:(NSInteger)dividerIndex {
+    if (splitView == self.mainSplitView) return splitView.bounds.size.height - 150.0f;
+    else if (splitView == self.debugSplitView) return splitView.bounds.size.width - 250.0f;
+    else if (splitView == self.runtimeSplitView) return splitView.bounds.size.width - 175.0f;
+    else return INFINITY;
+}
+
+- (BOOL)splitView:(NSSplitView *)splitView canCollapseSubview:(NSView *)subview {
+    if (splitView == self.runtimeSplitView) return NO;
+    else if (splitView == self.mainSplitView && subview == self.mainSplitView.arrangedSubviews.lastObject) return YES;
+    else if (splitView == self.mainSplitView) return NO;
+    if (splitView == self.debugSplitView) return YES;
+    return NO;
+}
+
 - (void)prepareRuntime {
     self->runtime = [SIMASRuntime runtime];
     [self->runtime registerLibrary:[SIMASStandardLibrary class] withPrefix:@""];
@@ -72,6 +104,7 @@
     [self->runtime setErrorOutputter:self forMethod:@selector(printError:)];
     [self->runtime setInputter:self forMethod:@selector(takeUserInput)];
     [self->runtime setEnding:self forMethod:@selector(stopProgram)];
+    [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(instructionDidExecute:) name:@"InstructionExecuted" object:self->runtime];
 relapse:
     [self->runtimeConditional lock];
     while (!self->isRunning) [self->runtimeConditional wait];
@@ -136,7 +169,22 @@ relapse:
     return YES;
 }
 
+- (IBAction)toggleProgram:(id)sender {
+    self->isPaused = !self->isPaused;
+    [self->runtime performSelector:(self->isPaused ? @selector(pause) : @selector(resume))];
+    self.stepButton.enabled = self->isPaused && self->isRunning;
+    self.pauseButton.title = self->isPaused ? @"Resume" : @"Pause";
+}
+- (IBAction)stepProgram:(id)sender {
+    [self->runtime step];
+}
+
+- (void)disableStepButton {
+    self.stepButton.enabled = NO;
+}
+
 - (void)startProgram {
+    [self saveDocument:self];
     [self->runtimeConditional lock];
     self.output.string = @"";
     self.errors.string = @"";
@@ -147,6 +195,8 @@ relapse:
     [self->runner setSelector:@selector(runFromString:)];
     [self->runner setArgument:&self->fileContents atIndex:2];
     [self->runner retainArguments];
+    if (self->isPaused) self.stepButton.enabled = YES;
+    self.programCounter.stringValue = @"Program Counter: ";
     self->isRunning = YES;
     [self->runtimeConditional signal];
     [self->runtimeConditional unlock];
@@ -155,6 +205,7 @@ relapse:
 - (void)stopProgram {
     [self performSelectorOnMainThread:@selector(controlTextDidEndEditing:) withObject:nil waitUntilDone:YES];
     [self.toggleSwitch performSelectorOnMainThread:@selector(setTitle:) withObject:@"run that shit burh" waitUntilDone:NO];
+    [self performSelectorOnMainThread:@selector(disableStepButton) withObject:nil waitUntilDone:NO];
     self->isRunning = NO;
 }
 
@@ -178,6 +229,7 @@ relapse:
     [self->_errors release];
     [self->_content release];
     [self->_toggleSwitch release];
+    [self->_highlightSwitch release];
     [super dealloc];
 }
 

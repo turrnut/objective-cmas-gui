@@ -24,6 +24,7 @@
 
 static pthread_key_t runtimeKey;
 static pthread_once_t runtimeKeyOnce = PTHREAD_ONCE_INIT;
+pthread_key_t conversionKey;
 static BOOL hasBeenInitialisedForMultithreading = NO;
 
 SIMASFUNC(labelNop) { return; }
@@ -321,6 +322,7 @@ NSArray *tokeniseStringExcludingQuotes(NSString* str, NSCharacterSet* charSet) {
 }
 
 - (void)execute {
+    [[NSNotificationCenter defaultCenter] postNotificationName:@"InstructionExecuted" object:[SIMASRuntime runtime] userInfo:[NSMutableDictionary dictionaryWithObject:self forKey:@"instruction"]];
     NSAutoreleasePool *pool = [NSAutoreleasePool new];
     self->operation->functionPointer(self->operation->targetGetter(self->arguments), self->operation->selectorGetter(), self->arguments);
     [pool release];
@@ -378,10 +380,13 @@ NSArray *tokeniseStringExcludingQuotes(NSString* str, NSCharacterSet* charSet) {
 
 + (NSMutableArray*)parseInstructionsFromString:(NSString*)string {
     NSMutableArray *instructionStrings = [NSMutableArray new];
+    NSMutableArray *ranges = [[NSMutableArray new] autorelease];
     NSMutableString *buffer = [string mutableCopy];
+    NSRange lastRange = NSMakeRange(0, 0);
     while ([buffer length]) {
         NSRange rangeOfInstruction = [buffer rangeOfString:@";"];
         if (rangeOfInstruction.location == NSNotFound) break;
+        NSRange originalRange = NSMakeRange(NSMaxRange(lastRange), 0);
         NSAutoreleasePool *pool = [NSAutoreleasePool new];
         NSMutableString *instruction = [[NSMutableString new] autorelease];
         BOOL inQuotes = NO;
@@ -390,12 +395,13 @@ NSArray *tokeniseStringExcludingQuotes(NSString* str, NSCharacterSet* charSet) {
             for (int i = 0; i < rangeOfInstruction.location; i++) {
                 unichar character = [buffer characterAtIndex:i];
                 if (character == '"' && !(backslashStreak % 2)) inQuotes = !inQuotes;
-                if (character == '\\') ++backslashStreak;
+                if (character == '\\' && inQuotes) ++backslashStreak;
                 else backslashStreak = 0;
             }
             if (inQuotes) {
                 rangeOfInstruction.length = rangeOfInstruction.location + 1;
                 rangeOfInstruction.location = 0;
+                originalRange.length += rangeOfInstruction.length;
                 [instruction appendString:[buffer substringWithRange:rangeOfInstruction]];
                 [buffer deleteCharactersInRange:rangeOfInstruction];
                 rangeOfInstruction = [buffer rangeOfString:@";"];
@@ -406,30 +412,32 @@ NSArray *tokeniseStringExcludingQuotes(NSString* str, NSCharacterSet* charSet) {
         if ([buffer length] < rangeOfInstruction.length) { [pool release]; break; }
         [instruction appendString:[buffer substringWithRange:rangeOfInstruction]];
         if ([buffer length] >= rangeOfInstruction.length + 1) rangeOfInstruction.length += 1;
+        originalRange.length += rangeOfInstruction.length;
         [buffer deleteCharactersInRange:rangeOfInstruction];
         [instructionStrings addObject:instruction];
+        lastRange = originalRange;
+        [ranges addObject:[NSValue valueWithRange:originalRange]];
         [pool release];
     }
     [buffer release];
     
     NSMutableArray *tokens = [NSMutableArray new];
-    NSAutoreleasePool *autorel = [NSAutoreleasePool new];
-    while ([instructionStrings count]) {
+    for (int i = 0; i < [instructionStrings count]; i++) {
         NSAutoreleasePool *pool = [NSAutoreleasePool new];
         NSMutableCharacterSet *characters = [NSMutableCharacterSet whitespaceAndNewlineCharacterSet];
-        NSString *str = [[instructionStrings objectAtIndex:0] stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceAndNewlineCharacterSet]];
-        if ([str length] && [str characterAtIndex:0] == '@') { [instructionStrings removeObjectAtIndex:0]; [pool release]; continue; }
+        NSString *str = [[instructionStrings objectAtIndex:i] stringByTrimmingCharactersInSet:characters];
+        if ([str length] && [str characterAtIndex:0] == '@') { [instructionStrings removeObjectAtIndex:i]; [ranges removeObjectAtIndex:i--]; [pool release]; continue; }
         NSArray *tokenised = tokeniseStringExcludingQuotes(str, characters);
-        if ([tokenised count] && [[tokenised objectAtIndex:0] length])[tokens addObject:tokenised];
-        [instructionStrings removeObjectAtIndex:0];
+        if ([tokenised count] && [[tokenised objectAtIndex:0] length]) [tokens addObject:tokenised];
         [pool release];
     }
-    [autorel release];
     [instructionStrings release];
     
     NSMutableArray *instructions = [[NSMutableArray new] autorelease];
     while ([tokens count]) {
         NSMutableArray *string = [[tokens objectAtIndex:0] mutableCopy]; // we love accidentally shadowing our own parameters, oh well, it works so /shrug
+        NSRange range = [[ranges objectAtIndex:0] rangeValue];
+        [ranges removeObjectAtIndex:0];
         [tokens removeObjectAtIndex:0];
         while ([string count] && [[[string objectAtIndex:0] lowercaseString] isEqualToString:@"please"]) [string removeObjectAtIndex:0];
         if (![string count]) { [string release]; continue; }
@@ -460,8 +468,10 @@ NSArray *tokeniseStringExcludingQuotes(NSString* str, NSCharacterSet* charSet) {
         [string removeObjectAtIndex:0];
         for (int i = 0; i < [string count]; i++) [string replaceObjectAtIndex:i withObject:formatEscapes([string objectAtIndex:i])];
         SIMASInstruction *instruction = [SIMASInstruction instructionFromOperation:operation withArguments:string];
+        if (instruction == nil) { [string release]; continue; }
         instruction->name = [name retain];
         instruction->prefix = [prefix retain];
+        instruction->rangeOfInstruction = range;
         int argCount = (int)[instruction->arguments count];
         [string release];
         if ([[SIMASRuntime runtime] isExcepted]) return nil;
@@ -550,8 +560,13 @@ id getStackFrame(NSArray* args) {
     return [[SIMASRuntime currentProgram]->stack lastObject];
 }
 
+static void objectReleaser(id item) {
+    [item release];
+}
+
 static void allocateRuntime() {
     pthread_key_create(&runtimeKey, NULL);
+    pthread_key_create(&conversionKey, (void(*)(void*))objectReleaser);
 }
 
 @implementation SIMASRuntime
@@ -604,6 +619,7 @@ static void allocateRuntime() {
         [self setOutputter:self forMethod:@selector(stdoutPrint:)];
         [self setErrorOutputter:self forMethod:@selector(errPrint:)];
         [self setInputter:self forMethod:@selector(stdinput)];
+        self->pauseLock = [NSLock new];
         return self;
     } else {
         [self release];
@@ -612,11 +628,18 @@ static void allocateRuntime() {
 }
 
 + (SIMASRuntime*)runtime {
+    static NSLock *runtimeLock = nil;
+    SIMASRuntime* runtime = nil;
+    if (!runtimeLock) runtimeLock = [NSLock new];
     if (!hasBeenInitialisedForMultithreading) {
+        [runtimeLock lock];
+        if (hasBeenInitialisedForMultithreading) { [runtimeLock unlock]; goto getRuntime; }
         pthread_once(&runtimeKeyOnce, allocateRuntime);
         hasBeenInitialisedForMultithreading = YES;
+        [runtimeLock unlock];
     }
-    SIMASRuntime* runtime = pthread_getspecific(runtimeKey);
+getRuntime:
+    runtime = pthread_getspecific(runtimeKey);
     if (!runtime) runtime = [self new];
     return runtime;
 }
@@ -697,6 +720,23 @@ static void allocateRuntime() {
     currentProgram->labels = [[SIMASInstruction preprocessLabels:currentProgram->instructions] retain];
     if (exceptionOccurred) goto cleanup;
     for (currentProgram->programCounter = 0; currentProgram->programCounter < [currentProgram->instructions count]; currentProgram->programCounter++) {
+        BOOL paused, stepped = NO;
+        [pauseLock lock];
+        paused = self->isPaused;
+        [pauseLock unlock];
+        while (paused && !stepped && !exceptionOccurred) {
+            [NSThread sleepForTimeInterval:0.05];
+            [pauseLock lock];
+            paused = self->isPaused;
+            stepped = self->stepped;
+            [pauseLock unlock];
+        }
+        if (stepped) {
+            [pauseLock lock];
+            self->stepped = NO;
+            [pauseLock unlock];
+        }
+        if (exceptionOccurred) break;
         [[currentProgram->instructions objectAtIndex:currentProgram->programCounter] execute];
         if (exceptionOccurred) break;
     }
@@ -739,4 +779,30 @@ static void allocateRuntime() {
     self->endingSelector = method;
 }
 
+- (void)pause {
+    [pauseLock lock];
+    self->isPaused = YES;
+    [pauseLock unlock];
+}
+
+- (void)resume {
+    [pauseLock lock];
+    self->isPaused = NO;
+    [pauseLock unlock];
+}
+
+- (void)step {
+    [pauseLock lock];
+    self->stepped = YES;
+    [pauseLock unlock];
+}
+
+- (void)dealloc {
+    [self->pauseLock release];
+    [self->registeredTypes release];
+    [self->registeredBlocks release];
+    [self->registeredClasses release];
+    [self->registeredOperations release];
+    [super dealloc];
+}
 @end

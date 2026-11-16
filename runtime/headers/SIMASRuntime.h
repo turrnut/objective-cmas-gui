@@ -37,6 +37,8 @@
 #define SIMASGETVARIABLEWITHARGUMENT(argument) [SIMASVariable findVariable:[args objectAtIndex:argument]] // convenience macro
 #define SIMASGETTYPEWITHARGUMENT(argument) [[SIMASRuntime runtime]->registeredTypes objectForKey:[[args objectAtIndex:argument] lowercaseString]]
 
+extern pthread_key_t conversionKey;
+
 NSString *formatEscapes(NSString*);
 NSString *unformatEscapes(NSString*);
 NSArray *tokeniseStringExcludingQuotes(NSString*, NSCharacterSet*);
@@ -113,6 +115,7 @@ typedef NS_ENUM(long long, SIMASArgumentClassifier) {
     NSArray *arguments;
     NSString *name;
     NSString *prefix;
+    NSRange rangeOfInstruction;
 }
 + (id)instructionFromOperation:(SIMASOperation*)op;
 + (id)instructionFromOperation:(SIMASOperation*)op withArguments:(NSArray*)arguments;
@@ -148,6 +151,9 @@ typedef NS_ENUM(long long, SIMASArgumentClassifier) {
     SEL errorSelector;
     SEL inputSelector;
     SEL endingSelector;
+    BOOL isPaused;
+    BOOL stepped;
+    NSLock *pauseLock;
 @public
     NSMutableDictionary *registeredClasses;
     NSMutableDictionary *registeredOperations;
@@ -179,6 +185,9 @@ typedef NS_ENUM(long long, SIMASArgumentClassifier) {
 - (void)print:(NSString*)string;
 - (void)printError:(NSString*)string;
 - (void)quitProgram;
+- (void)pause;
+- (void)resume;
+- (void)step;
 
 - (BOOL)isExcepted;
 @end

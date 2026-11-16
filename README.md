@@ -26,7 +26,6 @@ For example, `PLEASE PRINTC "Hello!";` and `PRINTC "Hello!";` does the same thin
     * `\t` - Tab character
     * `\r` - Carriage return (for files and such)
     * `\"` - Quotation mark (inside other quotes)
-    * `\;` - Semicolon (used to say a line is not yet ended)
 * Operations like `WRITE` or `PRINTC` need quotes to wrap string literals.
 * All statements, including function definitions or comments **must** end in semicolons.
 * Accessing arguments in functions starts with `$` followed by a number (starting from 1). Ex. `$1`, `$2`, etc.
