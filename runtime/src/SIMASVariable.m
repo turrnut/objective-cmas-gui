@@ -5,7 +5,7 @@
 //  Created by Xander Gomez on 9/6/26.
 //  Copyright © 2026 Xander Gomez. All rights reserved.
 //
-//  desperate, i will crawl
+//  desperate, i will thread
 //  waiting for so long
 //  no love, there is no love
 //  die for anyone
@@ -14,7 +14,7 @@
 //  something's just about to break
 //  i will try to find my place
 //  in the arch of simas
-//  as i burn another page
+//  as i leak another page
 //  as i look the other way
 //  i still try to find my place
 //  in the code of simas
@@ -101,7 +101,7 @@
     if ([[name lowercaseString] isEqualToString:@"true"] || [[name lowercaseString] isEqualToString:@"false"]) return [SIMASRuntime throwException:@"IllegalName" withReason:@"Variable names cannot be \"true\" or \"false\"." withSnideRemark:@"Why on god's green earth does this have to be a rule? 'Cause fragile parsing rules :)"];
     if ([[name lowercaseString] isEqualToString:@"in"]) return [SIMASRuntime throwException:@"IllegalName" withReason:@"The \"in\" variable name is reserved by SIMAS for input."];
     newVar = [[SIMASVariable new] autorelease];
-    [[SIMASRuntime currentProgram]->variables setObject:newVar forKey:name];
+    [[[SIMASRuntime currentProgram]->stack lastObject] addVariable:newVar forName:name];
     return newVar;
 }
 
@@ -111,18 +111,12 @@
         SIMASVariable *newVar = [[SIMASVariable new] autorelease];
         [newVar setData:[SIMASString stringWithString:[SIMASRuntime userInput]]];
         return newVar;
-    } else if ([name characterAtIndex:0] == '$') {
-        NSMutableArray *stack = [SIMASRuntime currentProgram]->stack;
-        NSString *cut = [name substringFromIndex:1];
-        if (isnumber([cut characterAtIndex:0]) && [cut characterAtIndex:0] != '0') {
-            int stackIndex = [cut intValue];
-            if (![stack count]) return nil;
-            if ([stack count] - 1 - stackIndex < 0) return nil;
-            if (stackIndex > ((SIMASStackFrame*)[stack lastObject])->function->argumentCount) return nil;
-            return [stack objectAtIndex:([stack count] - 1 - stackIndex)];
-        }
-        else return [[SIMASRuntime currentProgram]->variables objectForKey:name];
-    } else return [[SIMASRuntime currentProgram]->variables objectForKey:name];
+    } else {
+        SIMASVariable *var = nil;
+        SIMASBlock *block = [[SIMASRuntime currentProgram]->stack lastObject];
+        while (!(var = [block getVar:name]) && (block = [block parent]));
+        return var;
+    }
 }
 
 - (void)setWithVariable:(SIMASVariable*)var {

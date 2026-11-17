@@ -21,6 +21,11 @@
 //  ‘cause there ain't nothin' to worry 'bout
 //  let your hair down
 //  and square dance with me
+//
+//  eminem - square dance
+//  don't be scared of this code 'cause there ain't nothin' to worry 'bout
+//  just let your hair down
+//  and square dance with me (and the devil, who presumably lies within this code)
 
 #import <Foundation/Foundation.h>
 #import "SIMASVariable.h"
@@ -36,6 +41,8 @@
 
 #define SIMASGETVARIABLEWITHARGUMENT(argument) [SIMASVariable findVariable:[[args objectAtIndex:argument] string]] // convenience macro
 #define SIMASGETTYPEWITHARGUMENT(argument) [[SIMASRuntime runtime]->registeredTypes objectForKey:[[[args objectAtIndex:argument] string] lowercaseString]]
+
+@class SIMASRuntime;
 
 extern pthread_key_t conversionKey;
 
@@ -60,21 +67,6 @@ typedef NS_ENUM(long long, SIMASArgumentClassifier) {
 
 @protocol SIMASLibrary <NSObject>
 + (void)registerToSIMAS:(NSString*)prefix;
-@end
-
-@interface SIMASBlock : NSObject {
-    NSMutableDictionary *variables;
-    NSMutableDictionary *labels;
-    NSRange location;
-}
-
-+ (id)blockWithLocation:(NSRange)location;
-+ (NSString*)identifier; // fun
-+ (BOOL)canBeNested;
-- (void)doThings:(NSArray*)args;
-- (void)addVariable:(SIMASVariable*)var forName:(NSString*)name;
-- (SIMASVariable*)getVar:(NSString*)name;
-- (void)end;
 @end
 
 @interface SIMASOperation : NSObject {
@@ -120,21 +112,63 @@ typedef NS_ENUM(long long, SIMASArgumentClassifier) {
 + (id)instructionFromOperation:(SIMASOperation*)op;
 + (id)instructionFromOperation:(SIMASOperation*)op withArguments:(NSArray*)arguments;
 + (NSMutableArray*)parseInstructionsFromString:(NSString*)string;
-+ (void)preprocessBlocks:(NSMutableArray*)instructions;
-+ (void)preprocessImports:(NSMutableArray*)instructions;
-+ (NSMutableDictionary*)preprocessLabels:(NSMutableArray*)instructions;
 - (BOOL)isFunction:(SIMASFUNCTYPE)function;
 - (NSString*)stringValue;
 - (void)execute;
+@end
+
+@interface SIMASException : NSObject { // a struct-like object. so you can save it across threads n shit
+@public
+    NSString *exception;
+    NSString *reason;
+    NSString *remark;
+    SIMASInstruction *instruction;
+}
++ (id)makeWithException:(NSString*)exception andReason:(NSString*)reason;
++ (id)makeWithException:(NSString*)exception andReason:(NSString*)reason withRemark:(NSString*)remark;
++ (id)makeWithException:(NSString*)exception andReason:(NSString*)reason withInstruction:(SIMASInstruction*)instruction;
+@end
+
+@interface SIMASBlock : NSObject {
+    NSMutableDictionary *variables;
+    NSMutableDictionary *labels;
+    NSMutableDictionary *childNodes; // indexed by NSNumber
+    NSRange location;
+    SIMASBlock *parentNode; // ouuuuh SHIT is this a tree!?
+}
+
++ (SIMASBlock*)processBlocksForRange:(NSRange)range inInstructions:(NSArray *)instructions exception:(SIMASException**)ex; // supply nil to the third arg
++ (id)blockWithLocation:(NSRange)location;
++ (NSString*)identifier; // fun
++ (int)argumentMin;
++ (int)argumentMax;
++ (SIMASArgumentClassifier*)argClassifiers; // override with static const array of things
++ (BOOL)canBeNested;
+- (NSNumber*)programCounterForLabel:(NSString*)label;
+- (void)enter;
+- (void)preprocessLabels:(NSMutableArray*)instructions;
+- (void)reg:(NSArray*)args;
+- (void)addNode:(SIMASBlock*)node;
+- (SIMASBlock*)findNode:(int)pc;
+- (SIMASBlock*)parent;
+- (void)doThings:(NSArray*)args;
+- (void)addVariable:(SIMASVariable*)var forName:(NSString*)name;
+- (SIMASVariable*)getVar:(NSString*)name;
+- (void)deleteVariable:(NSString*)name;
+- (void)end;
+- (void)clearItems;
+- (void)cleanUp; // called to clean up after execution of a block OR when a block is jumped out of
+@end
+
+@interface SIMASBlockGeneric : SIMASBlock
 @end
 
 @interface SIMASProgram : NSObject {
 @public
     NSMutableArray *instructions;
     NSMutableArray *stack;
-    NSMutableDictionary *variables;
     NSMutableDictionary *functions;
-    NSMutableDictionary *labels;
+    SIMASBlock *baseBlock;
     int programCounter;
 }
 @end
@@ -167,7 +201,7 @@ typedef NS_ENUM(long long, SIMASArgumentClassifier) {
 + (id)throwException:(NSString*)exception withReason:(NSString*)reason; // nil so you can return it as nil itself
 + (id)throwException:(NSString*)exception withReason:(NSString*)reason withSnideRemark:(NSString*)remark;
 + (id)throwException:(NSString*)exception withReason:(NSString*)reason withInstruction:(SIMASInstruction*)instruction;
-
++ (id)throwException:(SIMASException*)exception;
 // there must be a class method named "registerToSIMAS:". this removes itself on program end. prefix may not be nil, but may be "" if you want it to be root-level (no prefix).
 // the prefix is provided for you in the "utilising" (utilising [bundle] as [prefix]).
 // you can, theoretically, ignore the passed prefix, but it's reccommended to register your things with the user prefix (unless none is provided, then do whatever)

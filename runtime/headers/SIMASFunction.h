@@ -9,23 +9,22 @@
 //  yesterday
 //  before you killed
 //  my family
+//
+//  serj tankian - empty walls
+//  objc killed my family
 
 #import <Foundation/Foundation.h>
 #import "SIMASRuntime.h"
 
-@interface SIMASFunction : NSObject {
+@interface SIMASFunction : SIMASBlock {
 @public
-    int argumentCount, location;
+    int argumentCount;
     NSString *name;
+    NSMutableArray *arguments;
+    int returnTo;
 }
-+ (void)registerFunction:(NSArray*)args;
-@end
 
-@interface SIMASStackFrame : SIMASBlock {
-    @public SIMASFunction *function;
-    @protected NSArray *passedArgs; int returnTo;
-}
-+ (void)pushStackFrame:(NSArray*)args;
-- (void)loopStackFrame:(NSArray*)args;
-- (void)endStackFrame:(NSArray*)args;
++ (void)returnFunction:(NSArray*)args;
++ (void)jump:(NSArray*)args;
+- (void)ret:(NSArray*)args;
 @end

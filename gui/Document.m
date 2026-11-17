@@ -14,6 +14,8 @@
 //  Got me, got me, you took another victim
 //  Mercy, mercy, put me in check
 //  With your [threads] wrapped 'round my [lock]
+//
+//  starset - telekinetic
 
 #import "Document.h"
 #import "SIMASRuntime.h"
@@ -102,7 +104,7 @@
         [self performSelectorOnMainThread:_cmd withObject:notif waitUntilDone:YES];
         return;
     }
-    if ([self.highlightSwitch state] == NSControlStateValueOn) {
+    if ([self.highlightSwitch state] == NSOnState) {
         NSMutableDictionary *info = [notif userInfo];
         self.programCounter.stringValue = [NSString stringWithFormat:@"Program Counter: %d", ((SIMASProgram*)[info objectForKey:@"program"])->programCounter];
         [self highlightInstruction:((SIMASInstruction*)[info objectForKey:@"instruction"])->rangeOfInstruction];
@@ -272,7 +274,12 @@ relapse:
     [self->_content release];
     [self->_toggleSwitch release];
     [self->_highlightSwitch release];
+    [self->_programCounter release];
+    [self->_pauseButton release];
+    [self->_stepButton release];
+    [self->_userInput release];
     [super dealloc];
 }
 
 @end
+

@@ -24,30 +24,84 @@
 #import "SIMASRuntime.h"
 
 @implementation SIMASFunction
-+ (void)registerFunction:(NSArray*)args {
+- (id)init {
+    if ((self = [super init])) self->arguments = [NSMutableArray new];
+    return self;
+}
+
+- (void)reg:(NSArray*)args {
     SIMASProgram *program = [SIMASRuntime currentProgram];
     NSString *name = [args objectAtIndex:0];
-    if ([program->stack count]) { [SIMASRuntime throwException:@"IllegalFunction" withReason:@"You cannot declare a function while inside of a function."]; return; }
     if ([name characterAtIndex:0] == '$') { [SIMASRuntime throwException:@"IllegalName" withReason:@"Names starting with '$' are reserved by the SIMAS runtime."]; return; }
     if ([program->functions objectForKey:name]) { [SIMASRuntime throwException:@"DuplicateName" withReason:[NSString stringWithFormat:@"Function %@ already exists.", name]]; return; }
-    SIMASFunction *newFunc = [SIMASFunction new];
-    newFunc->argumentCount = (int)[[args objectAtIndex:1] intValue] < 0 ? 0 : (int)[[args objectAtIndex:1] intValue];
-    newFunc->name = name;
-    newFunc->location = [SIMASRuntime currentProgram]->programCounter;
-    while (((SIMASInstruction*)[program->instructions objectAtIndex:program->programCounter])->operation->functionPointer != (SIMASFUNCTYPE)[SIMASStackFrame instanceMethodForSelector:@selector(loopStackFrame:)]) {
-        program->programCounter += 1;
-        if (program->programCounter >= [program->instructions count]) {
-            [SIMASRuntime throwException:@"EndlessFunction" withReason:[NSString stringWithFormat:@"Function %@ does not have a matching 'end fun' instruction.", name]];
-            return;
+    self->argumentCount = (int)[[args objectAtIndex:1] intValue] < 0 ? 0 : (int)[[args objectAtIndex:1] intValue];
+    self->name = [name copy];
+    [program->functions setObject:self forKey:self->name];
+}
+
+- (void)end {
+    [SIMASRuntime currentProgram]->programCounter = (int)self->location.location;
+}
+
++ (void)returnFunction:(NSArray*)args {
+    SIMASBlock *block = [[SIMASRuntime currentProgram]->stack lastObject];
+    while (![block isKindOfClass:[SIMASFunction class]] && block) {
+        [block cleanUp];
+        block = [block parent];
+    }
+    if (block) [(SIMASFunction*)block ret:args];
+    else {
+        [SIMASRuntime throwException:@"IllegalReturn" withReason:@"A return call was made outside of a function. Return calls MUST be made inside functions."];
+    }
+}
+
+- (void)ret:(NSArray*)args {
+    SIMASProgram *program = [SIMASRuntime currentProgram];
+    SIMASVariable *newVar = nil;
+    if ([args count] == 2) {
+        newVar = [SIMASVariable new];
+        NSString *type = [[args objectAtIndex:0] lowercaseString];
+        if ([type isEqualToString:@"v"]) [newVar setData:[[[[SIMASVariable findVariable:[args objectAtIndex:1]] data] copy] autorelease]];
+        else {
+            if (![[SIMASRuntime runtime]->registeredTypes objectForKey:type]) { [SIMASRuntime throwException:@"NonexistentType" withReason:[NSString stringWithFormat:@"Type %@ does not exist, thus cannot be used to convert.", type]]; return; }
+            [newVar setData:[[[SIMASRuntime runtime]->registeredTypes objectForKey:type] fromString:[args objectAtIndex:1]]];
+        }
+        if (![newVar data]) {
+            [newVar release];
+            newVar = nil;
         }
     }
-    [program->functions setObject:newFunc forKey:name];
-    [newFunc release];
+    program->programCounter = returnTo;
+    SIMASBlock *block = [program->stack lastObject];
+    while (self != block && block) {
+        [block cleanUp];
+        block = [block parent];
+    }
+    [self cleanUp];
+    if (newVar) {
+        NSString *name = [NSString stringWithFormat:@"$%@", self->name];
+        [[program->stack lastObject] deleteVariable:name];
+        [[program->stack lastObject] addVariable:newVar forName:name];
+        [newVar release];
+    }
 }
-@end
 
-@implementation SIMASStackFrame
-+ (void)pushStackFrame:(NSArray*)args {
+- (void)cleanUp {
+    [self->arguments removeAllObjects];
+    self->returnTo = 0;
+    [[SIMASRuntime currentProgram]->stack removeObject:self];
+}
+
+- (void)doThings:(NSArray*)args {
+    [SIMASRuntime currentProgram]->programCounter += (int)self->location.length;
+}
+
++ (int)argumentMin { return 2; }
++ (int)argumentMax { return 2; }
++ (BOOL)canBeNested { return NO; }
++ (NSString*)identifier { return @"fun"; }
+
++ (void)jump:(NSArray*)args {
     NSString *name = [args objectAtIndex:0];
     SIMASProgram *program = [SIMASRuntime currentProgram];
     SIMASFunction *function;
@@ -56,7 +110,6 @@
         [SIMASRuntime throwException:@"IllegalArgumentCount" withReason:[NSString stringWithFormat:@"An improper number of arguments was passed to call to function %@ (expected %d, recieved %d)", name, 1 + (function->argumentCount * 2), (int)[args count]]];
         return;
     }
-    SIMASStackFrame *stackFrame = [SIMASStackFrame new];
     NSMutableArray *newArgs = [NSMutableArray new];
     for (int i = 0; i < function->argumentCount; i++) {
         NSString *typeString = [[args objectAtIndex:i * 2 + 1] lowercaseString];
@@ -76,46 +129,19 @@
             [newVar release];
         }
     }
-    stackFrame->passedArgs = [newArgs copy];
+    [function->arguments setArray:newArgs];
     for (int i = 0, count = (int)[newArgs count]; i < count; i++) {
-        [program->stack addObject:[newArgs lastObject]];
-        [newArgs removeLastObject];
+        [function addVariable:[function->arguments objectAtIndex:i] forName:[NSString stringWithFormat:@"$%d", i]];
     }
     [newArgs release];
-    stackFrame->function = function;
-    [program->stack addObject:stackFrame];
-    stackFrame->returnTo = program->programCounter;
-    program->programCounter = function->location;
-}
-- (void)loopStackFrame:(NSArray*)args {
-    if (!self || !self->function) {
-        [SIMASRuntime throwException:@"IllegalEnd" withReason:@"The function which you are trying to end, sadly, is nonexistent. And so is the stack frame at which this exception is occurring." withSnideRemark:@"Seriously, how in the fuck did we get here?"];
-        return;
-    }
-    [SIMASRuntime currentProgram]->programCounter = self->function->location;
-}
-- (void)endStackFrame:(NSArray*)args {
-    SIMASProgram *program = [SIMASRuntime currentProgram];
-    NSString *name = [NSString stringWithFormat:@"$%@", function->name];
-    [program->variables removeObjectForKey:name];
-    if ([args count] == 2) {
-        SIMASVariable *newVar = [SIMASVariable new];
-        NSString *type = [[args objectAtIndex:0] lowercaseString];
-        if ([type isEqualToString:@"v"]) [newVar setData:[[[[SIMASVariable findVariable:[args objectAtIndex:1]] data] copy] autorelease]];
-        else {
-            if (![[SIMASRuntime runtime]->registeredTypes objectForKey:type]) { [SIMASRuntime throwException:@"NonexistentType" withReason:[NSString stringWithFormat:@"Type %@ does not exist, thus cannot be used to convert.", type]]; return; }
-            [newVar setData:[[[SIMASRuntime runtime]->registeredTypes objectForKey:type] fromString:[args objectAtIndex:1]]];
-        }
-        if ([newVar data]) [program->variables setObject:newVar forKey:name];
-        [newVar release];
-    }
-    program->programCounter = returnTo;
-    [program->stack removeLastObject];
-    for (int i = 0; i < function->argumentCount; i++) [program->stack removeLastObject];
+    [program->stack addObject:function];
+    function->returnTo = program->programCounter;
+    program->programCounter = (int)function->location.location;
 }
 
 - (void)dealloc {
-    [passedArgs release];
+    [self->name release];
+    [self->arguments release];
     [super dealloc];
 }
 @end

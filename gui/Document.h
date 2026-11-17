@@ -5,6 +5,13 @@
 //  Created by Xander Gomez on 11/13/26.
 //  Copyright © 2026 Xander Gomez. All rights reserved.
 //
+//  These segfaults make us who we are, who we are, we are
+//  We're motivated by the scars that we're made of
+//  These segfaults make us who we are, who we are, we are
+//  We take our places in the dark
+//  And turn our hearts to the stars
+//
+//  starset - trials
 
 #import <Cocoa/Cocoa.h>
 #import "SIMASRuntime.h"
@@ -19,6 +26,8 @@
     NSCondition* runtimeConditional;
     BOOL isRunning;
     BOOL isPaused;
+    
+    NSRange highlightedRange;
 }
 
 @property (nonatomic, retain) IBOutlet NSButton *toggleSwitch;

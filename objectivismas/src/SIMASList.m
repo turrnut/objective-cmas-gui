@@ -209,7 +209,7 @@ SIMASFUNC(listCopy) {
     if (!dest) {
         if ([[args objectAtIndex:1] characterAtIndex:0] == '$') { [SIMASRuntime throwException:@"IllegalName" withReason:@"List names cannot start with '$' (reserved)."]; return; }
         dest = [SIMASVariable new];
-        [[SIMASRuntime currentProgram]->variables setObject:[dest autorelease] forKey:[args objectAtIndex:1]];
+       // [[SIMASRuntime currentProgram]->variables setObject:[dest autorelease] forKey:[args objectAtIndex:1]];
     }
     SIMASList *sacrificial = (SIMASList*)[target copy];
     if ([[SIMASRuntime runtime] isExcepted]) return;
@@ -222,7 +222,7 @@ SIMASFUNC(makeAlias) {
     SIMASVariable *list = SIMASGETVARIABLEWITHARGUMENT(0);
     if (!list) { [SIMASRuntime throwException:@"NonexistentList" withReason:[NSString stringWithFormat:@"List %@ does not exist.", [args objectAtIndex:0]]]; return; }
     if (![[list data] isKindOfClass:[SIMASList class]]) { [SIMASRuntime throwException:@"IllegalType" withReason:[NSString stringWithFormat:@"Variable %@ is not a list.", [args objectAtIndex:0]]]; return; }
-    [[SIMASRuntime currentProgram]->variables setObject:[list makePointer] forKey:[args objectAtIndex:0]];
+    //[[SIMASRuntime currentProgram]->variables setObject:[list makePointer] forKey:[args objectAtIndex:0]];
 }
 
 @implementation SIMASList

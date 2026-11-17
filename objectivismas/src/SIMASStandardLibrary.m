@@ -270,26 +270,36 @@ SIMASFUNC(pointationNotation) {
     if (!variable1 || [name characterAtIndex:0] == '$' || [[args objectAtIndex:0] characterAtIndex:0] == '$') { [SIMASRuntime throwException:@"IllegalName" withReason:@"Variable names cannot start with '$' (reserved)."]; return; }
     if ([[[args objectAtIndex:1] lowercaseString] isEqualToString:@"in"]) { [SIMASRuntime throwException:@"IllegalName" withReason:@"Variable names cannot be 'in' (reserved)."]; return; }
     SIMASVariable *pointer = [SIMASVariable findVariable:name];
-    if (pointer) [[SIMASRuntime currentProgram]->variables removeObjectForKey:name];
-    [[SIMASRuntime currentProgram]->variables setObject:[variable1 makePointer] forKey:name];
+    if (pointer) [[[SIMASRuntime currentProgram]->stack lastObject] deleteVariable:name];
+    [[[SIMASRuntime currentProgram]->stack lastObject] addVariable:pointer forName:name];
+}
+
+NSNumber *doJump(NSString* name) {
+    NSNumber *jmp = nil;
+    SIMASBlock *block = [[SIMASRuntime currentProgram]->stack lastObject];
+    do {
+        jmp = [block programCounterForLabel:name];
+        if (!jmp) [block cleanUp];
+    } while ((block = [block parent]) && !jmp);
+    return jmp;
 }
 
 SIMASFUNC(jump) {
-    NSNumber *jump = [[SIMASRuntime currentProgram]->labels objectForKey:[args objectAtIndex:0]];
-    if (!jump) { [SIMASRuntime throwException:@"NonexistentLabel" withReason:[NSString stringWithFormat:@"Label %@ does not exist, and hence cannot be jumped to.", [args objectAtIndex:0]]]; return; }
+    NSNumber *jump = doJump([[args objectAtIndex:0] string]);
+    if (!jump) { [SIMASRuntime throwException:@"NonexistentLabel" withReason:[NSString stringWithFormat:@"Label %@ does not exist, and hence cannot be jumped to.", [[args objectAtIndex:0] string]]]; return; }
     [SIMASRuntime currentProgram]->programCounter = [jump intValue];
 }
 
 SIMASFUNC(jumpButConditionally) {
-    NSNumber *jump = [[SIMASRuntime currentProgram]->labels objectForKey:[args objectAtIndex:0]];
-    if (!jump) { [SIMASRuntime throwException:@"NonexistentLabel" withReason:[NSString stringWithFormat:@"Label %@ does not exist, and hence cannot be jumped to.", [args objectAtIndex:0]]]; return; }
+    NSNumber *jump = doJump([[args objectAtIndex:0] string]);
+    if (!jump) { [SIMASRuntime throwException:@"NonexistentLabel" withReason:[NSString stringWithFormat:@"Label %@ does not exist, and hence cannot be jumped to.", [[args objectAtIndex:0] string]]]; return; }
     SIMASVariable *condition = SIMASGETVARIABLEWITHARGUMENT(1);
     if (!condition) { [SIMASRuntime throwException:@"NonexistentVariable" withReason:[NSString stringWithFormat:@"Variable %@ does not exist, and the function which you are using it from does not implicitly create variables.", [args objectAtIndex:1]]]; return; }
     if ([[[condition data] getConverted:[SIMASBoolean class]] boolValue])[SIMASRuntime currentProgram]->programCounter = [jump intValue];
 }
 
 SIMASFUNC(jumpButConditionallyButNot) {
-    NSNumber *jump = [[SIMASRuntime currentProgram]->labels objectForKey:[[args objectAtIndex:0] string]];
+    NSNumber *jump = doJump([[args objectAtIndex:0] string]);
     if (!jump) { [SIMASRuntime throwException:@"NonexistentLabel" withReason:[NSString stringWithFormat:@"Label %@ does not exist, and hence cannot be jumped to.", [[args objectAtIndex:0] string]]]; return; }
     SIMASVariable *condition = SIMASGETVARIABLEWITHARGUMENT(1);
     if (!condition) { [SIMASRuntime throwException:@"NonexistentVariable" withReason:[NSString stringWithFormat:@"Variable %@ does not exist, and the function which you are using it from does not implicitly create variables.", [[args objectAtIndex:1] string]]]; return; }

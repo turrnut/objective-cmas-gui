@@ -35,6 +35,9 @@
 //  feed me
 //  fill me with sin
 //  and get ready to fight
+//
+//  Bill "Xtillidiex" Miur - Otherworld
+//  cause this shit is a whole other world of fucked
 
 #import <Foundation/Foundation.h>
 

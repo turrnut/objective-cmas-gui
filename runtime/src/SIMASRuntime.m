@@ -113,39 +113,113 @@ NSArray *tokeniseStringExcludingQuotes(NSString* str, NSCharacterSet* charSet) {
     if ((self = [super init])) {
         self->labels = [NSMutableDictionary new];
         self->variables = [NSMutableDictionary new];
+        self->childNodes = [NSMutableDictionary new];
     }
     return self;
 }
 
-+ (id)blockWithLocation:(NSRange)location {
-    SIMASBlock *block = [[self class] new];
-    block->location = location;
++ (SIMASBlock*)processBlocksForRange:(NSRange)range inInstructions:(NSArray *)instructions exception:(SIMASException**)ex {
+    SIMASException *buffer = nil;
+    SIMASBlock *block = [[self blockWithLocation:range] autorelease];
+    BOOL isRoot = [[self identifier] isEqualToString:@""];
+    if (!ex) { // sentinel to see that this is the root
+        ex = &buffer;
+    }
+    for (int i = !isRoot; i < range.length; i++) {
+        SIMASInstruction *inst = [instructions objectAtIndex:(range.location + i)];
+        Class blockClass = Nil;
+        block->location.length = i;
+        if ((blockClass = [[SIMASRuntime runtime]->registeredBlocks objectForKey:[inst->name lowercaseString]])) {
+            if (![blockClass canBeNested] && !isRoot) {
+                *ex = [SIMASException makeWithException:@"IllegalNest" andReason:[NSString stringWithFormat:@"Blocks of type %@ cannot be nested in other blocks.", [self identifier]] withInstruction:inst];
+                goto killTheTree;
+            }
+            NSRange newRange = NSMakeRange(range.location + i, range.length - i);
+            SIMASBlock *newBlock = [blockClass processBlocksForRange:newRange inInstructions:instructions exception:ex];
+            if (!newBlock && *ex) {
+                goto killTheTree;
+            } else if (newBlock) {
+                [block addNode:newBlock];
+                i += newBlock->location.length;
+            }
+            blockClass = nil;
+        } else if ([[inst->name lowercaseString] isEqualToString:@"end"]) {
+            if (isRoot) {
+                *ex = [SIMASException makeWithException:@"ExtraneousEnd" andReason:@"An end instruction has occured without a block." withInstruction:inst];
+                goto killTheTree;
+            } else if (![[[[inst->arguments objectAtIndex:0] string] lowercaseString] isEqualToString:[self identifier]]) {
+                *ex = [SIMASException makeWithException:@"MismatchedEndings" andReason:[NSString stringWithFormat:@"A block of type %@ was improperly ended with an ending of type %@", [self identifier], [[inst->arguments objectAtIndex:0] string]] withInstruction:inst];
+                goto killTheTree;
+            }
+            [block reg:((SIMASInstruction*)[[SIMASRuntime currentProgram]->instructions objectAtIndex:block->location.location])->arguments];
+            return block;
+        }
+    }
+    if (!isRoot) {
+        *ex = [SIMASException makeWithException:@"UnendingBlock" andReason:@"A block was not properly paired with an \"end\" instruction." withInstruction:[instructions objectAtIndex:block->location.location]];
+        goto killTheTree;
+    } else {
+        block->location.length = range.length;
+    }
     return block;
-}
-
-+ (NSString*)identifier {
+    
+killTheTree:
+    if (buffer) [SIMASRuntime throwException:buffer];
     return nil;
 }
-
-+ (BOOL)canBeNested {
-    return NO;
++ (id)blockWithLocation:(NSRange)location { SIMASBlock *block = [[self class] new]; block->location = location; return block; }
++ (NSString*)identifier { return @""; }
++ (BOOL)canBeNested { return YES; }
++ (int)argumentMin { return 0; }
++ (int)argumentMax { return 0; }
++ (SIMASArgumentClassifier*)argClassifiers { return NULL; }
+- (void)reg:(NSArray*)args { return; }
+- (void)addNode:(SIMASBlock*)node { [self->childNodes setObject:node forKey:[NSNumber numberWithInt:(int)node->location.location]]; node->parentNode = self; }
+- (void)doThings:(NSArray *)args { [self enter]; }
+- (void)addVariable:(SIMASVariable *)var forName:(NSString *)name { [self->variables setObject:var forKey:name]; }
+- (SIMASVariable*)getVar:(NSString *)name { return [self->variables objectForKey:name]; }
+- (void)deleteVariable:(NSString*)name { [self->variables removeObjectForKey:name]; }
+- (void)end { [self cleanUp]; }
+- (void)enter {
+    [[SIMASRuntime currentProgram]->stack addObject:self];
+    [self clearItems];
 }
-
-- (void)doThings:(NSArray *)args {
-    return;
+- (void)clearItems { [self->variables removeAllObjects]; }
+- (void)cleanUp { [[SIMASRuntime currentProgram]->stack removeObject:self]; [self clearItems]; }
+- (SIMASBlock*)findNode:(int)pc { return [self->childNodes objectForKey:[NSNumber numberWithInt:pc]]; }
+- (NSNumber*)programCounterForLabel:(NSString*)label { return [self->labels objectForKey:label]; }
+- (SIMASBlock*)parent { return self->parentNode; }
+- (void)preprocessLabels:(NSMutableArray*)instructions {
+    for (int i = ![[[self class] identifier] isEqualToString:@""]; i < self->location.length; i++) {
+        NSAutoreleasePool *pool = [NSAutoreleasePool new];
+        NSNumber *number = [NSNumber numberWithInt:(int)(self->location.location + i)];
+        SIMASBlock *block = [self->childNodes objectForKey:number];
+        if (block) {
+            [block preprocessLabels:instructions];
+            i += block->location.length;
+            continue;
+        }
+        SIMASInstruction *inst = [instructions objectAtIndex:(int)(self->location.location + i)];
+        if (inst->operation->functionPointer == labelNop) {
+            NSString *name = [[inst->arguments objectAtIndex:0] string];
+            if ([self->labels objectForKey:name]) {
+                [SIMASRuntime throwException:@"DuplicateLabel" withReason:[NSString stringWithFormat:@"Label '%@' is already defined.", name] withInstruction:inst];
+            }
+            [self->labels setObject:[NSNumber numberWithInt:(int)(self->location.location + i)] forKey:name];
+        }
+        [pool release];
+    }
 }
-
-- (void)addVariable:(SIMASVariable *)var forName:(NSString *)name {
-    [self->variables setObject:var forKey:name];
+- (void)dealloc {
+    [self->variables release];
+    [self->childNodes release];
+    [self->labels release];
+    [super dealloc];
 }
+@end
 
-- (SIMASVariable*)getVar:(NSString *)name {
-    return [self->variables objectForKey:name];
-}
-
-- (void)end {
-    [SIMASRuntime currentProgram]->programCounter = (int)self->location.location;
-}
+@implementation SIMASBlockGeneric
++ (NSString*)identifier { return @"block"; }
 @end
 
 @implementation SIMASArgument
@@ -310,7 +384,10 @@ NSArray *tokeniseStringExcludingQuotes(NSString* str, NSCharacterSet* charSet) {
         }
         [args addObject:arg];
         [arg release];
-        if (classification & SIMASArgumentStrictMatch && !([arg classification] & [SIMASArgument standardClassification:classification])) [SIMASRuntime throwException:@"BadArgument" withReason:[NSString stringWithFormat:@"At index %d, received argument of %@, expected argument of %@. %@", i, [SIMASArgument nameForClassifier:[arg classification]], [SIMASArgument namesForClassifiers:[SIMASArgument standardClassification:classification]], (classification & SIMASArgumentTypeName) ? @"Please note that if you were trying to use a type name, the type you're looking for may not be registered." : @""] withSnideRemark:@"Perhaps read the documentation next time? Actual skill issue, btw"]; // holy fuck
+        if (classification & SIMASArgumentStrictMatch && !([arg classification] & [SIMASArgument standardClassification:classification])) {
+            [SIMASRuntime throwException:@"BadArgument" withReason:[NSString stringWithFormat:@"At index %d, received argument of %@, expected argument of %@. %@", i, [SIMASArgument nameForClassifier:[arg classification]], [SIMASArgument namesForClassifiers:[SIMASArgument standardClassification:classification]], (classification & SIMASArgumentTypeName) ? @"Please note that if you were trying to use a type name, the type you're looking for may not be registered." : @""] withSnideRemark:@"Perhaps read the documentation next time? Actual skill issue, btw"]; // holy fuck
+            [[NSNotificationCenter defaultCenter] postNotificationName:@"InstructionFailed" object:[SIMASRuntime runtime] userInfo:[NSDictionary dictionaryWithObject:newInstruction forKey:@"instruction"]];
+        }
     }
     newInstruction->arguments = [args copy];
     [args release];
@@ -362,22 +439,6 @@ NSArray *tokeniseStringExcludingQuotes(NSString* str, NSCharacterSet* charSet) {
     [imports release];
 }
 
-+ (NSMutableDictionary*)preprocessLabels:(NSMutableArray*)instructions {
-    int count = (int)[instructions count];
-    NSMutableDictionary* labels = [[NSMutableDictionary new] autorelease];
-    for (int i = 0; i < count; i++) {
-        if (((SIMASInstruction*)[instructions objectAtIndex:i])->operation->functionPointer == labelNop) {
-            NSString *name = [((SIMASInstruction*)[instructions objectAtIndex:i])->arguments objectAtIndex:0];
-            if ([labels objectForKey:name]) {
-                [SIMASRuntime throwException:@"DuplicateLabel" withReason:[NSString stringWithFormat:@"Label '%@' is already defined.", name] withInstruction:[instructions objectAtIndex:i]];
-                return nil;
-            }
-            [labels setObject:[NSNumber numberWithInt:i] forKey:name];
-        }
-    }
-    return labels;
-}
-
 + (NSMutableArray*)parseInstructionsFromString:(NSString*)string {
     NSMutableArray *instructionStrings = [NSMutableArray new];
     NSMutableArray *ranges = [[NSMutableArray new] autorelease];
@@ -421,6 +482,7 @@ NSArray *tokeniseStringExcludingQuotes(NSString* str, NSCharacterSet* charSet) {
     }
     [buffer release];
     
+    // phase 2: tokenisation
     NSMutableArray *tokens = [NSMutableArray new];
     for (int i = 0; i < [instructionStrings count]; i++) {
         NSAutoreleasePool *pool = [NSAutoreleasePool new];
@@ -433,6 +495,8 @@ NSArray *tokeniseStringExcludingQuotes(NSString* str, NSCharacterSet* charSet) {
     }
     [instructionStrings release];
     
+    
+    // phase 3: turning into instruction
     NSMutableArray *instructions = [[NSMutableArray new] autorelease];
     while ([tokens count]) {
         NSMutableArray *string = [[tokens objectAtIndex:0] mutableCopy]; // we love accidentally shadowing our own parameters, oh well, it works so /shrug
@@ -528,9 +592,7 @@ NSArray *tokeniseStringExcludingQuotes(NSString* str, NSCharacterSet* charSet) {
     if (self) {
         self->functions = [NSMutableDictionary new];
         self->instructions = [NSMutableArray new];
-        self->labels = [NSMutableDictionary new];
         self->stack = [NSMutableArray new];
-        self->variables = [NSMutableDictionary new];
     }
     return self;
 }
@@ -544,19 +606,48 @@ NSArray *tokeniseStringExcludingQuotes(NSString* str, NSCharacterSet* charSet) {
 - (void)dealloc {
     [self->functions release];
     [self->instructions release];
-    [self->labels release];
     [self->stack release];
-    [self->variables release];
+    [self->baseBlock release];
+    [super dealloc];
+}
+@end
+
+@implementation SIMASException
++ (id)makeWithException:(NSString*)exception andReason:(NSString*)reason {
+    SIMASException *ex = [SIMASException new];
+    ex->exception = [exception copy];
+    ex->reason = [reason copy];
+    return [ex autorelease];
+}
++ (id)makeWithException:(NSString*)exception andReason:(NSString*)reason withRemark:(NSString*)remark {
+    SIMASException *ex = [self makeWithException:exception andReason:reason];
+    ex->remark = [remark copy];
+    return ex;
+}
++ (id)makeWithException:(NSString*)exception andReason:(NSString*)reason withInstruction:(SIMASInstruction*)instruction {
+    SIMASException *ex = [self makeWithException:exception andReason:reason];
+    ex->instruction = instruction;
+    return ex;
+}
+- (void)dealloc {
+    [self->exception release];
+    [self->reason release];
+    [self->remark release];
     [super dealloc];
 }
 @end
 
 SIMASCLASSMETHOD(SIMASFunction)
-SIMASCLASSMETHOD(SIMASStackFrame)
+
+SIMASFUNC(endBlock) {
+    [self end];
+}
+
+id getBlock(NSArray* args) {
+    return [[[SIMASRuntime currentProgram]->stack lastObject] findNode:[SIMASRuntime currentProgram]->programCounter];
+}
 
 id getStackFrame(NSArray* args) {
-    if (![[SIMASRuntime currentProgram]->stack count]) return nil;
-    if (![[[SIMASRuntime currentProgram]->stack lastObject] isKindOfClass:[SIMASStackFrame class]]) return nil;
     return [[SIMASRuntime currentProgram]->stack lastObject];
 }
 
@@ -589,6 +680,7 @@ static void allocateRuntime() {
         registeredClasses = [NSMutableDictionary new];
         registeredTypes = [NSMutableDictionary new];
         registeredOperations = [NSMutableDictionary new];
+        registeredBlocks = [NSMutableDictionary new];
         NSAutoreleasePool *pool = [NSAutoreleasePool new];
         [SIMASBoolean registerToRuntime];
         [SIMASNumber registerToRuntime];
@@ -603,18 +695,21 @@ static void allocateRuntime() {
         thing = [SIMASOperation makeWithFunction:utiliseNop];
         [thing setArgRange:1 toMaximum:3];
         [self registerOperation:thing withName:@"utilising" withPrefix:@""];
-        thing = [SIMASOperation makeWithFunction:SIMASGETFUNCTION([SIMASFunction class], @selector(registerFunction:)) withTargetGetter:SIMASCLASSMETHODNAME(SIMASFunction) andSelectorGetter:nullSelector];
-        [thing setMinArgs:2];
-        [self registerOperation:thing withName:@"fun" withPrefix:@""];
-        thing = [SIMASOperation makeWithFunction:SIMASGETFUNCTION([SIMASStackFrame class], @selector(pushStackFrame:)) withTargetGetter:SIMASCLASSMETHODNAME(SIMASStackFrame) andSelectorGetter:nullSelector];
-        [thing setMinArgs:1];
-        [self registerOperation:thing withName:@"call" withPrefix:@""];
-        thing = [SIMASOperation makeWithFunction:SIMASGETINSTANCEFUNCTION([SIMASStackFrame class], @selector(loopStackFrame:)) withTargetGetter:getStackFrame andSelectorGetter:nullSelector];
+        thing = [SIMASOperation makeWithFunction:endBlock withTargetGetter:getStackFrame andSelectorGetter:nullSelector];
         [thing setMinArgs:1];
         [self registerOperation:thing withName:@"end" withPrefix:@""];
-        thing = [SIMASOperation makeWithFunction:SIMASGETINSTANCEFUNCTION([SIMASStackFrame class], @selector(endStackFrame:)) withTargetGetter:getStackFrame andSelectorGetter:nullSelector];
+        
+        thing = [SIMASOperation makeWithFunction:SIMASGETFUNCTION([SIMASFunction class], @selector(returnFunction:)) withTargetGetter:SIMASCLASSMETHODNAME(SIMASFunction) andSelectorGetter:nullSelector];
         [thing setMaxArgs:3];
         [self registerOperation:thing withName:@"ret" withPrefix:@""];
+        
+        thing = [SIMASOperation makeWithFunction:SIMASGETFUNCTION([SIMASFunction class], @selector(jump:)) withTargetGetter:SIMASCLASSMETHODNAME(SIMASFunction) andSelectorGetter:nullSelector];
+        [thing setMinArgs:1];
+        [self registerOperation:thing withName:@"call" withPrefix:@""];
+        
+        [self registerBlock:[SIMASBlockGeneric class]];
+        [self registerBlock:[SIMASFunction class]];
+        
         [pool release];
         [self setOutputter:self forMethod:@selector(stdoutPrint:)];
         [self setErrorOutputter:self forMethod:@selector(errPrint:)];
@@ -662,18 +757,28 @@ getRuntime:
     if (program && [instructions count] > program->programCounter) theInstruction = [instructions objectAtIndex:program->programCounter];
     puts("");
     [[self runtime] printError:[NSString stringWithFormat:@"A %@ exception occurred: %@", exception, reason]];
-    if (theInstruction) [[self runtime] printError:[NSString stringWithFormat:@"Faulty code: %@", [theInstruction stringValue]]];
+    if (theInstruction) {
+        [[self runtime] printError:[NSString stringWithFormat:@"Faulty code: %@", [theInstruction stringValue]]];
+        [[NSNotificationCenter defaultCenter] postNotificationName:@"InstructionFailed" object:[SIMASRuntime runtime] userInfo:[NSDictionary dictionaryWithObject:theInstruction forKey:@"instruction"]];
+    }
     return nil;
 }
 + (id)throwException:(NSString*)exception withReason:(NSString*)reason withInstruction:(SIMASInstruction*)instruction {
     SIMASRuntime *theRuntime = [SIMASRuntime runtime];
     theRuntime->exceptionOccurred = YES;
     [[self runtime] printError:[NSString stringWithFormat:@"A %@ exception occurred: %@\nFaulty code: %@", exception, reason, [instruction stringValue]]];
+    [[NSNotificationCenter defaultCenter] postNotificationName:@"InstructionFailed" object:[SIMASRuntime runtime] userInfo:[NSDictionary dictionaryWithObject:instruction forKey:@"instruction"]];
     return nil;
 }
 + (id)throwException:(NSString *)exception withReason:(NSString *)reason withSnideRemark:(NSString*)remark {
     [self throwException:exception withReason:reason];
     [[self runtime] printError:[NSString stringWithFormat:@"The person who wrote the code that triggered this exception to save you from your own stupidity would also like to say: %@.", remark]];
+    return nil;
+}
++ (id)throwException:(SIMASException*)exception {
+    if (!exception->remark && !exception->instruction) [self throwException:exception->exception withReason:exception->reason];
+    else if (exception->remark) [self throwException:exception->exception withReason:exception->reason withSnideRemark:exception->remark];
+    else [self throwException:exception->exception withReason:exception->reason withInstruction:exception->instruction];
     return nil;
 }
 - (void)quitProgram {
@@ -705,6 +810,16 @@ getRuntime:
     if ([name isEqualToString:@"in"]) [SIMASRuntime throwException:@"ReservedNameException" withReason:@"Type name 'in' is reserved."];
     else if (![registeredTypes objectForKey:name]) [registeredTypes setObject:type forKey:name];
 }
+- (void)registerBlock:(Class)block {
+    NSString *ident = [block performSelector:@selector(identifier)];
+    if ([registeredBlocks objectForKey:ident]) return;
+    [registeredBlocks setObject:block forKey:ident];
+    SIMASOperation *thing = [SIMASOperation makeWithFunction:SIMASGETINSTANCEFUNCTION(block, @selector(doThings:)) withTargetGetter:getBlock andSelectorGetter:nullSelector];
+    [thing setArgRange:((int(*)(void))[block methodForSelector:@selector(argumentMin)])() toMaximum:((int(*)(void))[block methodForSelector:@selector(argumentMax)])()]; // UGLY
+    SIMASArgumentClassifier *classifiers = ((SIMASArgumentClassifier*(*)(void))[block methodForSelector:@selector(argClassifiers)])();
+    if (classifiers) [thing setArgClassifiers:classifiers];
+    [self registerOperation:thing withName:ident withPrefix:@""]; // added to the global namespace but eh it's fine
+}
 - (void)executeInstructions:(NSArray*)instructions {
     for (int i = 0, count = (int)[instructions count]; i < count; i++) {
         [[instructions objectAtIndex:i] execute];
@@ -717,7 +832,10 @@ getRuntime:
     currentProgram = [SIMASProgram loadFromString:string];
     if (exceptionOccurred) goto cleanup;
     [SIMASInstruction preprocessImports:currentProgram->instructions];
-    currentProgram->labels = [[SIMASInstruction preprocessLabels:currentProgram->instructions] retain];
+    currentProgram->baseBlock = [[SIMASBlock processBlocksForRange:NSMakeRange(0, [currentProgram->instructions count]) inInstructions:currentProgram->instructions exception:nil] retain];
+    if (exceptionOccurred) goto cleanup;
+    [currentProgram->stack addObject:currentProgram->baseBlock];
+    [currentProgram->baseBlock preprocessLabels:currentProgram->instructions];
     if (exceptionOccurred) goto cleanup;
     for (currentProgram->programCounter = 0; currentProgram->programCounter < [currentProgram->instructions count]; currentProgram->programCounter++) {
         BOOL paused, stepped = NO;
