@@ -238,6 +238,7 @@ typedef NS_ENUM(long long, SIMASArgumentClassifier) {
     BOOL isPaused;
     BOOL stepped;
     NSLock *pauseLock;
+    id debugger;
 @public
     NSMutableDictionary *registeredClasses;
     NSMutableDictionary *registeredOperations;
@@ -269,6 +270,8 @@ typedef NS_ENUM(long long, SIMASArgumentClassifier) {
 - (void)print:(NSString*)string;
 - (void)printError:(NSString*)string;
 - (void)quitProgram;
+- (id)debugger;
+- (void)setDebugger:(id)debugger;
 - (void)pause;
 - (void)resume;
 - (void)step;

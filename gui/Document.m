@@ -147,6 +147,7 @@
     [self->runtime setErrorOutputter:self forMethod:@selector(printError:)];
     [self->runtime setInputter:self forMethod:@selector(takeUserInput)];
     [self->runtime setEnding:self forMethod:@selector(stopProgram)];
+    [self->runtime setDebugger:self];
     [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(instructionDidExecute:) name:@"InstructionExecuted" object:self->runtime];
     [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(instructionFailed:) name:@"InstructionFailed" object:self->runtime];
 relapse:

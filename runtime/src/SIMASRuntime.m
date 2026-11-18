@@ -832,23 +832,26 @@ static void allocateRuntime() {
     [currentProgram->baseBlock preprocessLabels:currentProgram->instructions];
     if (exceptionOccurred) goto cleanup;
     for (currentProgram->programCounter = 0; currentProgram->programCounter < [currentProgram->instructions count]; currentProgram->programCounter++) {
-        BOOL paused, stepped = NO, excepted = [self isExcepted]; // i reallyyyy don't like the amount of locks we're using, but oh well, it'll keep the thread sanitiser happy, even if these locks are honest to god kinda pointless and just take cpu cycles
-        [pauseLock lock];
-        paused = self->isPaused;
-        [pauseLock unlock];
-        while (paused && !stepped && !excepted) {
-            [NSThread sleepForTimeInterval:0.05];
+        if ([self debugger]) { // keeps it fast as fuck on the "shit we don't need to debug" path :)
+            BOOL paused, stepped = NO, excepted = [self isExcepted]; // i reallyyyy don't like the amount of locks we're using, but oh well, it'll keep the thread sanitiser happy, even if these locks are honest to god kinda pointless and just take cpu cycles
             [pauseLock lock];
             paused = self->isPaused;
-            stepped = self->stepped;
             [pauseLock unlock];
+            while (paused && !stepped && !excepted) {
+                [NSThread sleepForTimeInterval:0.05];
+                [pauseLock lock];
+                paused = self->isPaused;
+                stepped = self->stepped;
+                excepted = self->exceptionOccurred;
+                [pauseLock unlock];
+            }
+            if (stepped) {
+                [pauseLock lock];
+                self->stepped = NO;
+                [pauseLock unlock];
+            }
+            if (excepted) break; // is fine since an exception isn't really gonna be recovered from
         }
-        if (stepped) {
-            [pauseLock lock];
-            self->stepped = NO;
-            [pauseLock unlock];
-        }
-        if (excepted) break;
         [[currentProgram->instructions objectAtIndex:currentProgram->programCounter] execute];
         if (exceptionOccurred) break;
     }
@@ -899,6 +902,7 @@ static void allocateRuntime() {
     self->endingSelector = method;
 }
 
+// a wall of "oh shit we might be multithreaded, we gotta be defensive"
 - (void)pause {
     [pauseLock lock];
     self->isPaused = YES;
@@ -914,6 +918,20 @@ static void allocateRuntime() {
 - (void)step {
     [pauseLock lock];
     self->stepped = YES;
+    [pauseLock unlock];
+}
+
+- (id)debugger {
+    id debugger = nil;
+    [pauseLock lock];
+    debugger = self->debugger;
+    [pauseLock unlock];
+    return debugger;
+}
+
+- (void)setDebugger:(id)debugger {
+    [pauseLock lock];
+    self->debugger = debugger;
     [pauseLock unlock];
 }
 
