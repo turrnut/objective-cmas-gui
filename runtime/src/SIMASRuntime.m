@@ -724,17 +724,8 @@ static void allocateRuntime() {
 }
 
 + (SIMASRuntime*)runtime {
-    static NSLock *runtimeLock = nil;
     SIMASRuntime* runtime = nil;
-    if (!runtimeLock) runtimeLock = [NSLock new];
-    if (!hasBeenInitialisedForMultithreading) {
-        [runtimeLock lock];
-        if (hasBeenInitialisedForMultithreading) { [runtimeLock unlock]; goto getRuntime; }
-        pthread_once(&runtimeKeyOnce, allocateRuntime);
-        hasBeenInitialisedForMultithreading = YES;
-        [runtimeLock unlock];
-    }
-getRuntime:
+    pthread_once(&runtimeKeyOnce, allocateRuntime); // shit right i forgot the ENTIRE FUCKING POINT of a pthread_once is that it executes O N C E T_T fucking kill me
     runtime = pthread_getspecific(runtimeKey);
     if (!runtime) runtime = [self new];
     return runtime;
@@ -783,7 +774,9 @@ getRuntime:
     return nil;
 }
 - (void)quitProgram {
+    [self->pauseLock lock];
     self->exceptionOccurred = YES; // shit way of doing it, but this flag does indeed kill the app so
+    [self->pauseLock unlock];
 }
 - (void)loadLibrary:(NSBundle *)libraryBundle withPrefix:(NSString*)prefix {
     if ([[libraryBundle principalClass] conformsToProtocol:@protocol(SIMASLibrary)]) [libraryBundle load];
@@ -839,11 +832,11 @@ getRuntime:
     [currentProgram->baseBlock preprocessLabels:currentProgram->instructions];
     if (exceptionOccurred) goto cleanup;
     for (currentProgram->programCounter = 0; currentProgram->programCounter < [currentProgram->instructions count]; currentProgram->programCounter++) {
-        BOOL paused, stepped = NO;
+        BOOL paused, stepped = NO, excepted = [self isExcepted]; // i reallyyyy don't like the amount of locks we're using, but oh well, it'll keep the thread sanitiser happy, even if these locks are honest to god kinda pointless and just take cpu cycles
         [pauseLock lock];
         paused = self->isPaused;
         [pauseLock unlock];
-        while (paused && !stepped && !exceptionOccurred) {
+        while (paused && !stepped && !excepted) {
             [NSThread sleepForTimeInterval:0.05];
             [pauseLock lock];
             paused = self->isPaused;
@@ -855,18 +848,26 @@ getRuntime:
             self->stepped = NO;
             [pauseLock unlock];
         }
-        if (exceptionOccurred) break;
+        if (excepted) break;
         [[currentProgram->instructions objectAtIndex:currentProgram->programCounter] execute];
         if (exceptionOccurred) break;
     }
     cleanup:
         [appPool release];
         currentProgram = nil;
+        [self->pauseLock lock];
         exceptionOccurred = NO;
+        [self->pauseLock unlock];
     [self->ending performSelector:self->endingSelector];
 }
 
-- (BOOL)isExcepted { return exceptionOccurred; }
+- (BOOL)isExcepted {
+    BOOL excepted = NO;
+    [self->pauseLock lock];
+    excepted = self->exceptionOccurred;
+    [self->pauseLock unlock];
+    return excepted;
+}
 
 - (void)setOutputter:(id)theOutputter forMethod:(SEL)method {
     self->outputter = theOutputter;

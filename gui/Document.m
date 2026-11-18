@@ -25,6 +25,10 @@
 #import <pthread.h>
 
 @implementation Document
+- (void)ohGodSomethingDied {
+    [[NSAlert alertWithMessageText:@"Uh oh!" defaultButton:@"Yay!" alternateButton:nil otherButton:nil informativeTextWithFormat:@"Something in the code went REALLY wrong! Like, bad enough to make the objective-c runtime pissy. You should probably save your code and report this on the github repo you got this from, and attach your code. toodles :)"] runModal];
+}
+
 - (void)printOutput:(NSString*)str {
     self.output.string = [self.output.string stringByAppendingString:str];
     [self.output scrollToEndOfDocument:nil];
@@ -149,7 +153,11 @@ relapse:
     [self->runtimeConditional lock];
     while (!self->isRunning) [self->runtimeConditional wait];
     if (self->fileContents) {
-        [[self->runner retain] invoke];
+        NS_DURING
+            [[self->runner retain] invoke];
+        NS_HANDLER
+            [self performSelectorOnMainThread:@selector(ohGodSomethingDied) withObject:nil waitUntilDone:YES];
+        NS_ENDHANDLER
         [self->runner release];
         self->runner = nil;
     }
