@@ -28,6 +28,9 @@
 		D9E9953B30A8202E00CB385F /* SIMASList.m in Sources */ = {isa = PBXBuildFile; fileRef = D9264C1A304E377000D503F0 /* SIMASList.m */; };
 		D9E9953C30A8202E00CB385F /* SIMASStandardLibrary.m in Sources */ = {isa = PBXBuildFile; fileRef = D9264BEC304D592E00D503F0 /* SIMASStandardLibrary.m */; };
 		D9E9953E30A8F96C00CB385F /* icon.png in Resources */ = {isa = PBXBuildFile; fileRef = D9E9953D30A8F96C00CB385F /* icon.png */; };
+		D9E9953F30AD287B00CB385F /* DOCS.md in Resources */ = {isa = PBXBuildFile; fileRef = D9264C1C304F97F900D503F0 /* DOCS.md */; };
+		D9E9954030AD287B00CB385F /* README.md in Resources */ = {isa = PBXBuildFile; fileRef = D9264C1D304F97F900D503F0 /* README.md */; };
+		D9E9954130AD287B00CB385F /* LIBRARIES.md in Resources */ = {isa = PBXBuildFile; fileRef = D9264C2330518C7800D503F0 /* LIBRARIES.md */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -322,8 +325,11 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				D9E9954030AD287B00CB385F /* README.md in Resources */,
 				D9E9953E30A8F96C00CB385F /* icon.png in Resources */,
 				D9E9952A30A8102000CB385F /* Assets.xcassets in Resources */,
+				D9E9953F30AD287B00CB385F /* DOCS.md in Resources */,
+				D9E9954130AD287B00CB385F /* LIBRARIES.md in Resources */,
 				D9E9952830A8101B00CB385F /* Document.xib in Resources */,
 				D9E9952D30A8102000CB385F /* MainMenu.xib in Resources */,
 			);

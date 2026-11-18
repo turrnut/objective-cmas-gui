@@ -258,7 +258,7 @@ Note: All comparison operators will OVERWRITE the FIRST variable passed in. Plea
 Note: Unlike labels, functions must be defined prior to use.
 
 #### - fun
-* define a function.
+* define a function, ended with a matching `end` instruction.
 * OPERAND 1: The name of the function
 * OPERAND 2: The amount of arguments accepted by the function. 
 * Arguments will appear as $[arg number], starting from 1.
@@ -269,9 +269,6 @@ Note: Unlike labels, functions must be defined prior to use.
 * OPERAND 2 (and every even-numbered operand hereon): Only needed if function takes args. The type of data that the arg passed is. V for a pre-existing variable, P for a POINTER to a variable, 
 otherwise put the name of the type, and then the data for that variable as a constant.
 * OPERAND 3 (and every odd-numbered operand hereon): Only needed if function takes args. The data of the passed argument.
-
-#### - end fun
-* signals the end of a function (must be included)
 
 #### - ret
 * breaks out of a function
@@ -298,3 +295,11 @@ otherwise put the name of the type, and then the data for that variable as a con
 * OPERAND 1: the library to load (.bundle format)
 * OPERAND 2 (optional, but required if operand 3 is present): as (no, like just the word as)
 * OPERAND 3: the prefix to apply to operations of the library
+
+#### - block
+* define a basic block with its own scope, ended with `end block`
+
+#### - end 
+* signals the end of a block 
+* OPERAND 1: the type of block to end (i.e. `block`, `fun`) (required)
+* note: this instruction is disallowed from being used outside of a block

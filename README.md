@@ -27,7 +27,7 @@ For example, `PLEASE PRINTC "Hello!";` and `PRINTC "Hello!";` does the same thin
     * `\r` - Carriage return (for files and such)
     * `\"` - Quotation mark (inside other quotes)
 * Operations like `WRITE` or `PRINTC` need quotes to wrap string literals.
-* All statements, including function definitions or comments **must** end in semicolons.
+* All statements, including function definitions or comments **must** end in semicolons. (though semicolons in strings are ignored)
 * Accessing arguments in functions starts with `$` followed by a number (starting from 1). Ex. `$1`, `$2`, etc.
 * Lists are 1-indexed (starts from 1).
 * Names starting with `$` are reserved, meaning you may not create a variable, list, function, pointer, or alias starting with `$`, nor can you create a pointer/alias to a reserved name.
@@ -56,5 +56,8 @@ and MUST be kept in mind if attempting to write cross-compatible programs.
 * Libraries - Objective-CMAS is currently the only known SIMAS implementation to support the inclusion of SIMAS libraries, adding new instructions or types.
 * Type addition - Objective-CMAS is not locked to the included types, libraries can add their own types.
 * `in` variable - Parameters named `in` (used in place of a standard variable name, but not a constant) will automatically grab input from the user (and coerce if necessary). Hence, this name is also reserved. Note: you CANNOT use `in` where a variable is reassigned (i.e. `xchg`, as both variables are reassigned).
+* Variable Scoping - Variables defined within a scope cannot be used outside of a scope, while variables defined in a scope can be used in an inner scope. This means all variables defined in functions, for example, cannot be accessed outside of that function. 
+* On variable scoping - Variables within a scope will *automatically* reset themselves once they leave a scope. This means variables DO NOT persist across entries into the scope.
+* Label Scoping - Just like variables, labels are also scoped. Cannot jump to a label inside of an inner scope, but can jump to one in an outer scope.
 # Links
 For instructions & datatypes, check <a href="DOCS.md">here.</a>

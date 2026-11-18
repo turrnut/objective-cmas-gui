@@ -197,6 +197,7 @@ killTheTree:
         if (block) {
             [block preprocessLabels:instructions];
             i += block->location.length;
+            [pool release];
             continue;
         }
         SIMASInstruction *inst = [instructions objectAtIndex:(int)(self->location.location + i)];
@@ -921,6 +922,7 @@ getRuntime:
     [self->registeredBlocks release];
     [self->registeredClasses release];
     [self->registeredOperations release];
+    pthread_setspecific(runtimeKey, NULL);
     [super dealloc];
 }
 @end

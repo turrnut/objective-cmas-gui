@@ -89,7 +89,7 @@
 - (void)cleanUp {
     [self->arguments removeAllObjects];
     self->returnTo = 0;
-    [[SIMASRuntime currentProgram]->stack removeObject:self];
+    [super cleanUp];
 }
 
 - (void)doThings:(NSArray*)args {
