@@ -155,7 +155,8 @@ SIMASCLASSMETHOD(SIMASComparison)
 
 SIMASFUNC(setVar) {
     NSString *name = [args objectAtIndex:1], *second = [args count] > 2 ? [args objectAtIndex:2] : nil;
-    SIMASVariable *targetVar = [SIMASVariable makeVariable:name];
+    SIMASVariable *targetVar = [SIMASVariable findVariable:name];
+    if (!targetVar) targetVar = [SIMASVariable makeVariable:name];
     if (!targetVar) return;
     if ([[args objectAtIndex:0] classification] == SIMASArgumentInput) {
         [targetVar setData:[SIMASString stringWithString:formatEscapes([SIMASRuntime userInput])]];

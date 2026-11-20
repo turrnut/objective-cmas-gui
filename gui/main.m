@@ -22,5 +22,11 @@
 #import <Cocoa/Cocoa.h>
 
 int main(int argc, const char * argv[]) {
+    NSString* str = nil;
+    NSScanner *scan = [NSScanner scannerWithString:@"this->is->a->test"];
+    [scan scanUpToString:@"->" intoString:&str];
+    NSLog(str);
+    [scan scanUpToString:@"->" intoString:&str];
+    NSLog(str);
     return NSApplicationMain(argc, argv);
 }

@@ -59,5 +59,6 @@ and MUST be kept in mind if attempting to write cross-compatible programs.
 * Variable Scoping - Variables defined within a scope cannot be used outside of a scope, while variables defined in a scope can be used in an inner scope. This means all variables defined in functions, for example, cannot be accessed outside of that function. 
 * On variable scoping - Variables within a scope will *automatically* reset themselves once they leave a scope. This means variables DO NOT persist across entries into the scope.
 * Label Scoping - Just like variables, labels are also scoped. Cannot jump to a label inside of an inner scope, but can jump to one in an outer scope.
+* Structures - Use structures to organise your variables! yum. Structure members can be accessed with `instancename->member`, and instances can be made with the `new` instruction.
 # Links
 For instructions & datatypes, check <a href="DOCS.md">here.</a>

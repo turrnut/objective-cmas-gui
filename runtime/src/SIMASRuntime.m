@@ -22,11 +22,6 @@
 #import "SIMASFunction.h"
 #import <pthread.h>
 
-static pthread_key_t runtimeKey;
-static pthread_once_t runtimeKeyOnce = PTHREAD_ONCE_INIT;
-pthread_key_t conversionKey;
-static BOOL hasBeenInitialisedForMultithreading = NO;
-
 SIMASFUNC(labelNop) { return; }
 SIMASFUNC(importNop) { return; }
 SIMASFUNC(utiliseNop) { return; }
@@ -114,6 +109,7 @@ NSArray *tokeniseStringExcludingQuotes(NSString* str, NSCharacterSet* charSet) {
         self->labels = [NSMutableDictionary new];
         self->variables = [NSMutableDictionary new];
         self->childNodes = [NSMutableDictionary new];
+        self->instantiatedStructs = [NSMutableDictionary new];
     }
     return self;
 }
@@ -129,7 +125,10 @@ NSArray *tokeniseStringExcludingQuotes(NSString* str, NSCharacterSet* charSet) {
         SIMASInstruction *inst = [instructions objectAtIndex:(range.location + i)];
         Class blockClass = Nil;
         block->location.length = i;
-        if ((blockClass = [[SIMASRuntime runtime]->registeredBlocks objectForKey:[inst->name lowercaseString]])) {
+        if (![[inst->name lowercaseString] isEqualToString:@"end"] && (([[block class] usesBlacklist] && [[[block class] blacklist] containsObject:inst->operation]) || ([[block class] usesWhitelist] && ![[[block class] whitelist] containsObject:inst->operation]))) {
+            *ex = [SIMASException makeWithException:@"ForbiddenInstruction" andReason:@"The provided instruction is not allowed from running in this block." withInstruction:inst];
+            goto killTheTree;
+        } else if ((blockClass = [[SIMASRuntime runtime]->registeredBlocks objectForKey:[inst->name lowercaseString]])) {
             if (![blockClass canBeNested] && !isRoot) {
                 *ex = [SIMASException makeWithException:@"IllegalNest" andReason:[NSString stringWithFormat:@"Blocks of type %@ cannot be nested in other blocks.", [self identifier]] withInstruction:inst];
                 goto killTheTree;
@@ -151,7 +150,8 @@ NSArray *tokeniseStringExcludingQuotes(NSString* str, NSCharacterSet* charSet) {
                 *ex = [SIMASException makeWithException:@"MismatchedEndings" andReason:[NSString stringWithFormat:@"A block of type %@ was improperly ended with an ending of type %@", [self identifier], [[inst->arguments objectAtIndex:0] string]] withInstruction:inst];
                 goto killTheTree;
             }
-            [block reg:((SIMASInstruction*)[[SIMASRuntime currentProgram]->instructions objectAtIndex:block->location.location])->arguments];
+            [block reg:((SIMASInstruction*)[[SIMASRuntime currentProgram]->instructions objectAtIndex:block->location.location])->arguments withException:ex];
+            if (*ex) { (*ex)->instruction = inst; goto killTheTree; }
             return block;
         }
     }
@@ -173,7 +173,38 @@ killTheTree:
 + (int)argumentMin { return 0; }
 + (int)argumentMax { return 0; }
 + (SIMASArgumentClassifier*)argClassifiers { return NULL; }
-- (void)reg:(NSArray*)args { return; }
++ (BOOL)usesWhitelist {
+    return NO;
+}
++ (BOOL)usesBlacklist {
+    return YES;
+}
++ (NSMutableSet*)whitelist {
+    NSMutableDictionary *listDict = [[[NSThread currentThread] threadDictionary] objectForKey:@"blockWhitelists"];
+    NSMutableSet *list = [listDict objectForKey:[self class]];
+    if (!list) {
+        [listDict setObject:(list = [[NSMutableSet new] autorelease]) forKey:(id<NSCopying>)[self class]];
+        [self initWhitelistData];
+    }
+    return list;
+}
++ (NSMutableSet*)blacklist {
+    NSMutableDictionary *listDict = [[[NSThread currentThread] threadDictionary] objectForKey:@"blockBlacklists"];
+    NSMutableSet *list = [listDict objectForKey:[self class]];
+    if (!list) {
+        [listDict setObject:(list = [[NSMutableSet new] autorelease]) forKey:(id<NSCopying>)[self class]];
+        [self initBlacklistData];
+    }
+    return list;
+}
++ (void)initWhitelistData {
+    return;
+}
++ (void)initBlacklistData {
+    NSMutableSet *set = [self blacklist]; // slightly recursive but it's fine since the second pass will have had it alloc'd and hence it wont double up on this.
+    [set addObject:[[[SIMASRuntime runtime]->registeredOperations objectForKey:@""] objectForKey:@"ret"]];
+}
+- (void)reg:(NSArray*)args withException:(SIMASException**)ex { return; }
 - (void)addNode:(SIMASBlock*)node { [self->childNodes setObject:node forKey:[NSNumber numberWithInt:(int)node->location.location]]; node->parentNode = self; }
 - (void)doThings:(NSArray *)args { [self enter]; }
 - (void)addVariable:(SIMASVariable *)var forName:(NSString *)name { [self->variables setObject:var forKey:name]; }
@@ -189,6 +220,7 @@ killTheTree:
 - (SIMASBlock*)findNode:(int)pc { return [self->childNodes objectForKey:[NSNumber numberWithInt:pc]]; }
 - (NSNumber*)programCounterForLabel:(NSString*)label { return [self->labels objectForKey:label]; }
 - (SIMASBlock*)parent { return self->parentNode; }
+- (id)getStruct:(NSString*)name { return [self->instantiatedStructs objectForKey:name]; }
 - (void)preprocessLabels:(NSMutableArray*)instructions {
     for (int i = ![[[self class] identifier] isEqualToString:@""]; i < self->location.length; i++) {
         NSAutoreleasePool *pool = [NSAutoreleasePool new];
@@ -215,12 +247,88 @@ killTheTree:
     [self->variables release];
     [self->childNodes release];
     [self->labels release];
+    [self->instantiatedStructs release];
     [super dealloc];
 }
 @end
 
 @implementation SIMASBlockGeneric
 + (NSString*)identifier { return @"block"; }
+@end
+
+@implementation SIMASStruct
++ (NSString*)identifier { return @"struct"; }
++ (BOOL)canBeNested { return NO; }
++ (int)argumentMin { return 1; }
++ (int)argumentMax { return 1; }
++ (BOOL)usesWhitelist { return YES; }
++ (BOOL)usesBlacklist { return NO; }
++ (NSMutableSet*)whitelist {
+    NSMutableSet *set = [NSMutableSet setWithSet:[SIMASRuntime runtime]->typeSet];
+    [set addObject:[[[SIMASRuntime runtime]->registeredOperations objectForKey:@""] objectForKey:@"new"]];
+    return set;
+}
+- (void)reg:(NSArray*)args withException:(SIMASException**)ex { // mmmm sketchy as fuck yum
+    SIMASProgram *prog = [SIMASRuntime currentProgram];
+    if ([prog->structures objectForKey:[args objectAtIndex:0]]) {
+        *ex = [SIMASException makeWithException:@"StructureRedefinition" andReason:[NSString stringWithFormat:@"Structure %@ is already defined.", [args objectAtIndex:0]]];
+        return;
+    }
+    if ((*ex = [SIMASRuntime validateName:[[args objectAtIndex:0] string]])) return;
+    [prog->structures setObject:self forKey:[args objectAtIndex:0]];
+    NSRange range = self->location;
+    range.length -= 1;
+    range.location += 1;
+    NSArray *insts = [prog->instructions subarrayWithRange:range];
+    if (![insts count]) {
+        *ex = [SIMASException makeWithException:@"EmptyStructure" andReason:[NSString stringWithFormat:@"Structure %@ is empty.", [args objectAtIndex:0]]];
+        return;
+    }
+    self->instructions = [insts retain];
+    self->name = [[args objectAtIndex:0] copy];
+}
+- (void)doThings:(NSArray*)args {
+    [SIMASRuntime currentProgram]->programCounter += (int)self->location.length;
+}
++ (void)spawn:(NSArray*)args {
+    SIMASException *nameValidation = [SIMASRuntime validateName:[[args objectAtIndex:1] string]];
+    if (nameValidation) {
+        [SIMASRuntime throwException:nameValidation];
+        return;
+    }
+    SIMASStruct *newStruct = [[SIMASStruct new] autorelease];
+    SIMASStruct *sourceStruct = [[SIMASRuntime currentProgram]->structures objectForKey:[[args objectAtIndex:0] string]];
+    if (!sourceStruct) {
+        [SIMASRuntime throwException:@"NonexistentStructure" withReason:[NSString stringWithFormat:@"Structure \"%@\" is not a valid structure.", [[args objectAtIndex:0] string]]];
+        return;
+    }
+    [[SIMASRuntime currentProgram]->stack addObject:newStruct];
+    int oldPC = [SIMASRuntime currentProgram]->programCounter;
+    int *pc = &[SIMASRuntime currentProgram]->programCounter;
+    *pc = (int)sourceStruct->location.location + 1;
+    for (int i = 0, count = (int)[sourceStruct->instructions count]; i < count && ![[SIMASRuntime runtime] isExcepted]; i++) {
+        if ([[[((SIMASInstruction*)[sourceStruct->instructions objectAtIndex:i])->arguments objectAtIndex:0] string] isEqualToString:sourceStruct->name]) {
+            [SIMASRuntime throwException:@"RecursiveStructure" withReason:@"You cannot contain a structure within itself."];
+            return;
+        }
+        [[sourceStruct->instructions objectAtIndex:i] execute];
+        (*pc)++;
+    }
+    *pc = oldPC;
+    [[SIMASRuntime currentProgram]->stack removeLastObject];
+    [((SIMASStruct*)[[SIMASRuntime currentProgram]->stack lastObject])->instantiatedStructs setObject:newStruct forKey:[[args objectAtIndex:1] string]];
+}
++ (SIMASStruct*)findStruct:(NSString*)name {
+    SIMASStruct *struc = nil;
+    SIMASBlock *block = [[SIMASRuntime currentProgram]->stack lastObject];
+    while (!(struc = [block->instantiatedStructs objectForKey:name]) && (block = [block parent]));
+    return struc;
+}
+- (void)dealloc {
+    [self->instructions release];
+    [self->name release];
+    [super dealloc];
+}
 @end
 
 @implementation SIMASArgument
@@ -346,6 +454,12 @@ killTheTree:
     newOp->selectorGetter = selector;
     return newOp;
 }
++ (SIMASOperation*)makeWithFunction:(void (*)(id, SEL, NSArray *))func withTarget:(id)target andSelector:(SEL)selector {
+    SIMASOperation *newOp = [SIMASOperation makeWithFunction:func];
+    newOp->target = target;
+    newOp->selector = selector;
+    return newOp;
+}
 - (void)setMaxArgs:(int)maximum { maximumArguments = maximum; }
 - (void)setMinArgs:(int)minimum { minimumArguments = minimum; }
 - (void)setArgRange:(int)minimum toMaximum:(int)maximum { minimumArguments = minimum; maximumArguments = maximum; };
@@ -402,7 +516,7 @@ killTheTree:
 - (void)execute {
     [[NSNotificationCenter defaultCenter] postNotificationName:@"InstructionExecuted" object:[SIMASRuntime runtime] userInfo:[NSMutableDictionary dictionaryWithObject:self forKey:@"instruction"]];
     NSAutoreleasePool *pool = [NSAutoreleasePool new];
-    self->operation->functionPointer(self->operation->targetGetter(self->arguments), self->operation->selectorGetter(), self->arguments);
+    self->operation->functionPointer(self->operation->target ? self->operation->target : self->operation->targetGetter(self->arguments), self->operation->selector ? self->operation->selector : self->operation->selectorGetter(), self->arguments);
     [pool release];
 }
 
@@ -484,7 +598,7 @@ killTheTree:
     [buffer release];
     
     // phase 2: tokenisation
-    NSMutableArray *tokens = [NSMutableArray new];
+    NSMutableArray *tokens = [[NSMutableArray new] autorelease];
     for (int i = 0; i < [instructionStrings count]; i++) {
         NSAutoreleasePool *pool = [NSAutoreleasePool new];
         NSMutableCharacterSet *characters = [NSMutableCharacterSet whitespaceAndNewlineCharacterSet];
@@ -594,13 +708,14 @@ killTheTree:
         self->functions = [NSMutableDictionary new];
         self->instructions = [NSMutableArray new];
         self->stack = [NSMutableArray new];
+        self->structures = [NSMutableDictionary new];
     }
     return self;
 }
 
 + (SIMASProgram*)loadFromString:(NSString*)string {
     SIMASProgram *newProgram = [SIMASProgram new];
-    newProgram->instructions = [[SIMASInstruction parseInstructionsFromString:string] retain];
+    [newProgram->instructions setArray:[SIMASInstruction parseInstructionsFromString:string]];
     return [newProgram autorelease];
 }
 
@@ -609,6 +724,7 @@ killTheTree:
     [self->instructions release];
     [self->stack release];
     [self->baseBlock release];
+    [self->structures release];
     [super dealloc];
 }
 @end
@@ -652,15 +768,6 @@ id getStackFrame(NSArray* args) {
     return [[SIMASRuntime currentProgram]->stack lastObject];
 }
 
-static void objectReleaser(id item) {
-    [item release];
-}
-
-static void allocateRuntime() {
-    pthread_key_create(&runtimeKey, NULL);
-    pthread_key_create(&conversionKey, (void(*)(void*))objectReleaser);
-}
-
 @implementation SIMASRuntime
 - (void)stdoutPrint:(NSString*)string {
     printf("%s", [string UTF8String]);
@@ -676,13 +783,19 @@ static void allocateRuntime() {
 
 - (id)init {
     self = [super init];
-    if (self && pthread_getspecific(runtimeKey) == NULL) {
-        pthread_setspecific(runtimeKey, self);
+    if (self && ![[[NSThread currentThread] threadDictionary] objectForKey:@"runtime"]) {
+        NSMutableDictionary *threadDict = [[NSThread currentThread] threadDictionary];
+        NSAutoreleasePool *pool = [NSAutoreleasePool new];
+        [threadDict setObject:self forKey:@"runtime"];
+        [threadDict setObject:[[NSMutableDictionary new] autorelease] forKey:@"conversions"];
+        [threadDict setObject:[[NSMutableDictionary new] autorelease] forKey:@"blockBlacklists"];
+        [threadDict setObject:[[NSMutableDictionary new] autorelease] forKey:@"blockWhitelists"];
         registeredClasses = [NSMutableDictionary new];
         registeredTypes = [NSMutableDictionary new];
         registeredOperations = [NSMutableDictionary new];
         registeredBlocks = [NSMutableDictionary new];
-        NSAutoreleasePool *pool = [NSAutoreleasePool new];
+        operationSet = [NSMutableSet new];
+        typeSet = [NSMutableSet new];
         [SIMASBoolean registerToRuntime];
         [SIMASNumber registerToRuntime];
         [SIMASString registerToRuntime];
@@ -708,8 +821,13 @@ static void allocateRuntime() {
         [thing setMinArgs:1];
         [self registerOperation:thing withName:@"call" withPrefix:@""];
         
+        thing = [SIMASOperation makeWithFunction:SIMASGETFUNCTION([SIMASStruct class], @selector(spawn:)) withTarget:[SIMASStruct class] andSelector:@selector(spawn:)];
+        [thing setArgRange:2 toMaximum:2];
+        [self registerOperation:thing withName:@"new" withPrefix:@""];
+        
         [self registerBlock:[SIMASBlockGeneric class]];
         [self registerBlock:[SIMASFunction class]];
+        [self registerBlock:[SIMASStruct class]];
         
         [pool release];
         [self setOutputter:self forMethod:@selector(stdoutPrint:)];
@@ -719,14 +837,12 @@ static void allocateRuntime() {
         return self;
     } else {
         [self release];
-        return pthread_getspecific(runtimeKey);
+        return [[[NSThread currentThread] threadDictionary] objectForKey:@"runtime"];
     }
 }
 
 + (SIMASRuntime*)runtime {
-    SIMASRuntime* runtime = nil;
-    pthread_once(&runtimeKeyOnce, allocateRuntime); // shit right i forgot the ENTIRE FUCKING POINT of a pthread_once is that it executes O N C E T_T fucking kill me
-    runtime = pthread_getspecific(runtimeKey);
+    SIMASRuntime* runtime = [[[NSThread currentThread] threadDictionary] objectForKey:@"runtime"];
     if (!runtime) runtime = [self new];
     return runtime;
 }
@@ -773,6 +889,15 @@ static void allocateRuntime() {
     else [self throwException:exception->exception withReason:exception->reason withInstruction:exception->instruction];
     return nil;
 }
++ (SIMASException*)validateName:(NSString*)name {
+    if ([name characterAtIndex:0] == '$' || [[SIMASRuntime runtime] isExcepted]) return [SIMASException makeWithException:@"IllegalName" andReason:@"Names starting with '$' are reserved by the SIMAS runtime."];
+    if ([[SIMASRuntime runtime]->registeredTypes objectForKey:[name lowercaseString]]) return [SIMASException makeWithException:@"IllegalName" andReason:@"Names cannot be the same as a type."];
+    if ([[name lowercaseString] isEqualToString:@"true"] || [[name lowercaseString] isEqualToString:@"false"]) return [SIMASException makeWithException:@"IllegalName" andReason:@"Names cannot be \"true\" or \"false\"." withRemark:@"Why on god's green earth does this have to be a rule? 'Cause fragile parsing rules :)"];
+    if ([[name lowercaseString] isEqualToString:@"in"]) return [SIMASRuntime throwException:@"IllegalName" withReason:@"The \"in\" name is reserved by SIMAS for input."];
+    if ([[NSCharacterSet decimalDigitCharacterSet] characterIsMember:[name characterAtIndex:0]]) return [SIMASException makeWithException:@"IllegalName" andReason:@"Names may not start with a number."];
+    if (([name rangeOfCharacterFromSet:[[NSCharacterSet alphanumericCharacterSet] invertedSet]]).location != NSNotFound) return [SIMASException makeWithException:@"IllegalName" andReason:@"Names must consist of only alphanumeric characters."];
+    return nil;
+}
 - (void)quitProgram {
     [self->pauseLock lock];
     self->exceptionOccurred = YES; // shit way of doing it, but this flag does indeed kill the app so
@@ -797,12 +922,19 @@ static void allocateRuntime() {
     if (!dict) [registeredOperations setObject:(dict = [[NSMutableDictionary new] autorelease]) forKey:prefix];
     if ([dict objectForKey:name]) return;
     [dict setObject:operation forKey:name];
+    [operationSet addObject:operation];
 }
 - (void)registerType:(Class)type withName:(NSString*)name {
     if (!name) return;
     name = [name lowercaseString];
     if ([name isEqualToString:@"in"]) [SIMASRuntime throwException:@"ReservedNameException" withReason:@"Type name 'in' is reserved."];
-    else if (![registeredTypes objectForKey:name]) [registeredTypes setObject:type forKey:name];
+    else if (![registeredTypes objectForKey:name]) {
+        [registeredTypes setObject:type forKey:name];
+        SIMASOperation *thing = [SIMASOperation makeWithFunction:SIMASGETFUNCTION([SIMASData class], @selector(spawn:)) withTarget:type andSelector:@selector(spawn:)];
+        [thing setArgRange:1 toMaximum:1];
+        [self registerOperation:thing withName:name withPrefix:@""];
+        [typeSet addObject:thing];
+    }
 }
 - (void)registerBlock:(Class)block {
     NSString *ident = [block performSelector:@selector(identifier)];
@@ -941,7 +1073,12 @@ static void allocateRuntime() {
     [self->registeredBlocks release];
     [self->registeredClasses release];
     [self->registeredOperations release];
-    pthread_setspecific(runtimeKey, NULL);
+    [self->operationSet release];
+    [self->typeSet release];
+    [[[NSThread currentThread] threadDictionary] removeObjectForKey:@"runtime"];
+    [[[NSThread currentThread] threadDictionary] removeObjectForKey:@"conversions"];
+    [[[NSThread currentThread] threadDictionary] removeObjectForKey:@"blockBlacklists"];
+    [[[NSThread currentThread] threadDictionary] removeObjectForKey:@"blockWhitelists"];
     [super dealloc];
 }
 @end

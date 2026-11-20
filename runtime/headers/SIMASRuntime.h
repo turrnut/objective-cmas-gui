@@ -94,13 +94,11 @@
 
 @class SIMASRuntime;
 
-extern pthread_key_t conversionKey;
-
 NSString *formatEscapes(NSString*);
 NSString *unformatEscapes(NSString*);
 NSArray *tokeniseStringExcludingQuotes(NSString*, NSCharacterSet*);
 
-typedef NS_ENUM(long long, SIMASArgumentClassifier) {
+typedef NS_ENUM(int, SIMASArgumentClassifier) {
     SIMASArgumentNumber = 1,
     SIMASArgumentBoolean = 2,
     SIMASArgumentString = 4,
@@ -108,11 +106,11 @@ typedef NS_ENUM(long long, SIMASArgumentClassifier) {
     SIMASArgumentVariableName = 16,
     SIMASArgumentInput = 32,
     SIMASArgumentGenericConstant = 64,
-    SIMASArgumentThing = 128,
-    SIMASArgumentUseAsFallback = 256, // tells the parser to autoeval, but use this as the fallback
-    SIMASArgumentUseGeneric = 512, // tells the parser to autoeval, and use the default generic
-    SIMASArgumentUseThis = 1024, // tells the parser to use EXACTLY this
-    SIMASArgumentStrictMatch = 2048
+    SIMASArgumentThing = 4096,
+    SIMASArgumentUseAsFallback = 134217728, // tells the parser to autoeval, but use this as the fallback
+    SIMASArgumentUseGeneric = 268435456, // tells the parser to autoeval, and use the default generic
+    SIMASArgumentUseThis = 536870912, // tells the parser to use EXACTLY this
+    SIMASArgumentStrictMatch = 1073741824
 };
 
 @protocol SIMASLibrary <NSObject>
@@ -123,13 +121,16 @@ typedef NS_ENUM(long long, SIMASArgumentClassifier) {
 @public
     void (*functionPointer)(id, SEL, NSArray*); // used so you can either do a standard C func OR pass in an objc method, if using the two other function pointers
     id (*targetGetter)(NSArray*); // optional
+    id target; // optional, force sets a target to always be there
     SEL (*selectorGetter)(void); // optional, but reccommended if using targetGetter
+    SEL selector; // optional, force sets a selector to always be there
     int minimumArguments;
     int maximumArguments;
     SIMASArgumentClassifier *classifications;
 }
 + (SIMASOperation*)makeWithFunction:(void (*)(id, SEL, NSArray*))func;
 + (SIMASOperation*)makeWithFunction:(void (*)(id, SEL, NSArray*))func withTargetGetter:(id (*)(NSArray*))target andSelectorGetter:(SEL (*)(void))selector;
++ (SIMASOperation*)makeWithFunction:(void (*)(id, SEL, NSArray *))func withTarget:(id)target andSelector:(SEL)selector;
 - (void)setMaxArgs:(int)maximum;
 - (void)setMinArgs:(int)minimum;
 - (void)setArgRange:(int)minimum toMaximum:(int)maximum;
@@ -183,6 +184,7 @@ typedef NS_ENUM(long long, SIMASArgumentClassifier) {
     NSMutableDictionary *variables;
     NSMutableDictionary *labels;
     NSMutableDictionary *childNodes; // indexed by NSNumber
+    NSMutableDictionary *instantiatedStructs;
     NSRange location;
     SIMASBlock *parentNode; // ouuuuh SHIT is this a tree!?
 }
@@ -194,16 +196,24 @@ typedef NS_ENUM(long long, SIMASArgumentClassifier) {
 + (int)argumentMax;
 + (SIMASArgumentClassifier*)argClassifiers; // override with static const array of things
 + (BOOL)canBeNested;
+// please note that if you're whitelisting/blacklisting by getting an object, it must go through (the runtime)->operations->object for key: a prefix->object for key: the operation you want to put on a list
++ (BOOL)usesWhitelist; // NO by default. if yes, it will ONLY allow instructions from your whitelist. if no, it will allow all instructions (except those in the blacklist, if enabled)
++ (BOOL)usesBlacklist; // YES by default, used to disable instructions like ret from running in non-function instructions.
++ (NSMutableSet*)whitelist; // list of instructions ALLOWED to run in this block
++ (NSMutableSet*)blacklist; // list of instructions DISallowed from running in this block
++ (void)initWhitelistData; // this is where you'd set your WHITELIST's data. called on allocation of whitelist
++ (void)initBlacklistData; // this is where you'd set your BLACKLIST's data. called on allocation of blacklist
 - (NSNumber*)programCounterForLabel:(NSString*)label;
 - (void)enter;
 - (void)preprocessLabels:(NSMutableArray*)instructions;
-- (void)reg:(NSArray*)args;
+- (void)reg:(NSArray*)args withException:(SIMASException**)ex;
 - (void)addNode:(SIMASBlock*)node;
 - (SIMASBlock*)findNode:(int)pc;
 - (SIMASBlock*)parent;
 - (void)doThings:(NSArray*)args;
 - (void)addVariable:(SIMASVariable*)var forName:(NSString*)name;
 - (SIMASVariable*)getVar:(NSString*)name;
+- (id)getStruct:(NSString*)name;
 - (void)deleteVariable:(NSString*)name;
 - (void)end;
 - (void)clearItems;
@@ -213,11 +223,20 @@ typedef NS_ENUM(long long, SIMASArgumentClassifier) {
 @interface SIMASBlockGeneric : SIMASBlock
 @end
 
+@interface SIMASStruct : SIMASBlock {
+    NSArray *instructions;
+    NSString *name;
+}
++ (void)spawn:(NSArray*)args;
++ (SIMASStruct*)findStruct:(NSString*)name;
+@end
+
 @interface SIMASProgram : NSObject {
 @public
     NSMutableArray *instructions;
     NSMutableArray *stack;
     NSMutableDictionary *functions;
+    NSMutableDictionary *structures;
     SIMASBlock *baseBlock;
     int programCounter;
 }
@@ -244,6 +263,8 @@ typedef NS_ENUM(long long, SIMASArgumentClassifier) {
     NSMutableDictionary *registeredOperations;
     NSMutableDictionary *registeredTypes; // types like num, bool, str are the keys, the classes are the values
     NSMutableDictionary *registeredBlocks;
+    NSMutableSet *operationSet;
+    NSMutableSet *typeSet;
 }
 
 + (SIMASRuntime*)runtime;
@@ -253,6 +274,7 @@ typedef NS_ENUM(long long, SIMASArgumentClassifier) {
 + (id)throwException:(NSString*)exception withReason:(NSString*)reason withSnideRemark:(NSString*)remark;
 + (id)throwException:(NSString*)exception withReason:(NSString*)reason withInstruction:(SIMASInstruction*)instruction;
 + (id)throwException:(SIMASException*)exception;
++ (SIMASException*)validateName:(NSString*)name; // returns nil if valid
 // there must be a class method named "registerToSIMAS:". this removes itself on program end. prefix may not be nil, but may be "" if you want it to be root-level (no prefix).
 // the prefix is provided for you in the "utilising" (utilising [bundle] as [prefix]).
 // you can, theoretically, ignore the passed prefix, but it's reccommended to register your things with the user prefix (unless none is provided, then do whatever)

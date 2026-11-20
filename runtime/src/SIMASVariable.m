@@ -48,12 +48,12 @@
 }
 
 + (NSMutableDictionary*)allowedConversions {
-    NSMutableDictionary* thing = (NSMutableDictionary*)pthread_getspecific(conversionKey);
-    if (!thing) pthread_setspecific(conversionKey, (thing = (void*)[NSMutableDictionary new]));
+    NSMutableDictionary* thing = [[[NSThread currentThread] threadDictionary] objectForKey:@"conversions"];
+    if (!thing) [[[NSThread currentThread] threadDictionary] setObject:(thing = (void*)[NSMutableDictionary new]) forKey:@"conversions"];
     NSMutableDictionary* conversions = [thing objectForKey:[self class]];
     if (conversions == nil) {
         conversions = [NSMutableDictionary new]; // leaks technically but- oh wait no, the runtime now destroys it with it because threading :D
-        [thing setObject:conversions forKey:(id<NSCopying>)[self class]];
+        [thing setObject:conversions forKey:(id<NSCopying>)self];
         [conversions release];
     }
     return conversions;
@@ -66,6 +66,15 @@
 + (void)registerToRuntime {
     [self initialiseConversions];
     [[SIMASRuntime runtime] registerType:self withName:[self name]];
+}
+
++ (void)spawn:(NSArray*)args {
+    if ([[[SIMASRuntime currentProgram]->stack lastObject] getVar:[args objectAtIndex:0]]) {
+        [SIMASRuntime throwException:@"VariableRedefinition" withReason:[NSString stringWithFormat:@"Variable %@ has already been defined in this scope.", [args objectAtIndex:0]]];
+        return;
+    }
+    SIMASVariable *newVar = [SIMASVariable makeVariable:[args objectAtIndex:0]];
+    [newVar setData:[[[self class] new] autorelease]];
 }
 
 + (void)addConversion:(Class)type withConversionClass:(Class)conversionClass {
@@ -96,10 +105,8 @@
 + (SIMASVariable*)makeVariable:(NSString*)name {
     SIMASVariable *newVar;
     if ((newVar = [self findVariable:name])) return newVar;
-    if ([name characterAtIndex:0] == '$' || [[SIMASRuntime runtime] isExcepted]) return [SIMASRuntime throwException:@"IllegalName" withReason:@"Names starting with '$' are reserved by the SIMAS runtime."];
-    if ([[SIMASRuntime runtime]->registeredTypes objectForKey:[name lowercaseString]]) return [SIMASRuntime throwException:@"IllegalName" withReason:@"Variable names cannot be the same as a type."];
-    if ([[name lowercaseString] isEqualToString:@"true"] || [[name lowercaseString] isEqualToString:@"false"]) return [SIMASRuntime throwException:@"IllegalName" withReason:@"Variable names cannot be \"true\" or \"false\"." withSnideRemark:@"Why on god's green earth does this have to be a rule? 'Cause fragile parsing rules :)"];
-    if ([[name lowercaseString] isEqualToString:@"in"]) return [SIMASRuntime throwException:@"IllegalName" withReason:@"The \"in\" variable name is reserved by SIMAS for input."];
+    SIMASException *validation = [SIMASRuntime validateName:name];
+    if (validation) return [SIMASRuntime throwException:validation];
     newVar = [[SIMASVariable new] autorelease];
     [[[SIMASRuntime currentProgram]->stack lastObject] addVariable:newVar forName:name];
     return newVar;
@@ -112,9 +119,19 @@
         [newVar setData:[SIMASString stringWithString:[SIMASRuntime userInput]]];
         return newVar;
     } else {
+        NSArray *tokens = [name componentsSeparatedByString:@"->"];
+        NSString *theName = [tokens lastObject];
         SIMASVariable *var = nil;
-        SIMASBlock *block = [[SIMASRuntime currentProgram]->stack lastObject];
-        while (!(var = [block getVar:name]) && (block = [block parent]));
+        if ([tokens count] >= 2) {
+            SIMASStruct *structure = [SIMASStruct findStruct:[tokens objectAtIndex:0]];
+            if (![theName length]) return [SIMASRuntime throwException:@"EmptyName" withReason:@"No name has been provided for a struct member."];
+            for (int i = 1, count = (int)[tokens count]; i < (count - 1) && structure; i++) structure = [structure getStruct:[tokens objectAtIndex:i]];
+            if (!structure) return [SIMASRuntime throwException:@"NonexistentStructure" withReason:@"The structure which you are trying to find a member of does not exist."];
+            return [structure getVar:theName];
+        } else {
+            SIMASBlock *block = [[SIMASRuntime currentProgram]->stack lastObject];
+            while (!(var = [block getVar:theName]) && (block = [block parent]));
+        }
         return var;
     }
 }

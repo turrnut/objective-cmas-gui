@@ -29,11 +29,11 @@
     return self;
 }
 
-- (void)reg:(NSArray*)args {
+- (void)reg:(NSArray*)args withException:(SIMASException**)ex {
     SIMASProgram *program = [SIMASRuntime currentProgram];
     NSString *name = [args objectAtIndex:0];
-    if ([name characterAtIndex:0] == '$') { [SIMASRuntime throwException:@"IllegalName" withReason:@"Names starting with '$' are reserved by the SIMAS runtime."]; return; }
-    if ([program->functions objectForKey:name]) { [SIMASRuntime throwException:@"DuplicateName" withReason:[NSString stringWithFormat:@"Function %@ already exists.", name]]; return; }
+    if ([name characterAtIndex:0] == '$') { *ex = [SIMASException makeWithException:@"IllegalName" andReason:@"Names starting with '$' are reserved by the SIMAS runtime."]; return; }
+    if ([program->functions objectForKey:name]) { *ex = [SIMASException makeWithException:@"DuplicateName" andReason:[NSString stringWithFormat:@"Function %@ already exists.", name]]; return; }
     self->argumentCount = (int)[[args objectAtIndex:1] intValue] < 0 ? 0 : (int)[[args objectAtIndex:1] intValue];
     self->name = [name copy];
     [program->functions setObject:self forKey:self->name];
@@ -63,7 +63,7 @@
         NSString *type = [[args objectAtIndex:0] lowercaseString];
         if ([type isEqualToString:@"v"]) [newVar setData:[[[[SIMASVariable findVariable:[args objectAtIndex:1]] data] copy] autorelease]];
         else {
-            if (![[SIMASRuntime runtime]->registeredTypes objectForKey:type]) { [SIMASRuntime throwException:@"NonexistentType" withReason:[NSString stringWithFormat:@"Type %@ does not exist, thus cannot be used to convert.", type]]; return; }
+            if (![[SIMASRuntime runtime]->registeredTypes objectForKey:type]) { [SIMASRuntime throwException:@"NonexistentType" withReason:[NSString stringWithFormat:@"Type %@ does not exist, thus cannot be used to convert.", type]]; [newVar release]; return; }
             [newVar setData:[[[SIMASRuntime runtime]->registeredTypes objectForKey:type] fromString:[args objectAtIndex:1]]];
         }
         if (![newVar data]) {
@@ -100,6 +100,8 @@
 + (int)argumentMax { return 2; }
 + (BOOL)canBeNested { return NO; }
 + (NSString*)identifier { return @"fun"; }
+
++ (BOOL)usesBlacklist { return NO; }
 
 + (void)jump:(NSArray*)args {
     NSString *name = [args objectAtIndex:0];

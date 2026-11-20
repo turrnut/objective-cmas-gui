@@ -303,3 +303,16 @@ otherwise put the name of the type, and then the data for that variable as a con
 * signals the end of a block 
 * OPERAND 1: the type of block to end (i.e. `block`, `fun`) (required)
 * note: this instruction is disallowed from being used outside of a block
+
+#### - [type]
+* this in itself is not one instruction, but it will spawn a new variable of the specified type, set to its default value. not allowed to be called if the variable already exists
+* OPERAND 1: the name of the variable
+
+#### - struct
+* declares a new struct to be added to the runtime. get members with `->`
+* OPERAND 1: the name of the structure
+
+#### - new
+* instantiates a struct
+* OPERAND 1: the name of the structure to instantiate
+* OPERAND 2: the name of the instance 

@@ -56,6 +56,7 @@
 + (void)registerToRuntime; // registers itself to the runtime, calling initialiseConversions
 + (void)initialiseConversions; // override this to call addConversion with your default conversions. this is auto-called by registerToRuntime
 + (SIMASData*)dataWithData:(id)data;
++ (void)spawn:(NSArray*)args;
 
 + (NSDictionary*)conversions;
 + (void)addConversion:(Class)type withConversionClass:(Class)conversionClass; // add a SIMASConversion subclass' class here
