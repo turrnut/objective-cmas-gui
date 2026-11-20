@@ -39,7 +39,10 @@ but be warned that most CMAS code may not run correctly on other implementations
 CMAS tries to achieve maximal parity with SIMASJS, and as such supports (nearly) all SIMASJS instructions & behaviour,
 but also has its own superset of features & instructions.<br>
 
-The same applies to CMAS and Objective-CMAS, behaviour and instructions have changed, and it should not be assumed that one will behave like the other.
+~~The same applies to CMAS and Objective-CMAS, behaviour and instructions have changed, and it should not be assumed that one will behave like the other.~~
+
+As it currently stands, Objective-CMAS has drifted far enough from the current implementations to count as trying to stay compatible.<br>
+in other words, yo shit aint gonna work on other shit XD
 
 #### Known CMAS-only features (excluding instructions):
 * Type coersion - For operations like `ADD`, not all operands need to be `num` type, as their values will be coerced into `num`-compatible values. (note: not all instructions support this. `ADD`, for example, still requires the second operand be a number if you're using a constant rather than a variable name.)

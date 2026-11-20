@@ -69,8 +69,8 @@ Note: If aiming for SIMASJS compatibility, ALL math ops require both operands go
 #### - sub
 * performs operation of OPERAND 2 minus OPERAND 3 - the value will be assigned to OPERAND 2
 * OPERAND 1: the data type to assign to OPERAND 2
-* OPERAND 2: the subtrahend, being a variable name
-* OPERAND 3: the minuend, optionally being a variable name
+* OPERAND 2: the minuend, being a variable name
+* OPERAND 3: the subtrahend, optionally being a variable name
 
 #### - mul
 * performs operation of OPERAND 2 multiply OPERAND 3 - the value will be assigned to OPERAND 2
@@ -117,13 +117,13 @@ Note: All comparison operators will OVERWRITE the FIRST variable passed in. Plea
 * OPERAND 3: the second boolean variable, optionally being a variable name
 
 #### - nand (CMAS only)
-* performs logical operation AND on OPERAND 2 and 3; the value will be assigned to OPERAND 2
+* performs logical operation NAND on OPERAND 2 and 3; the value will be assigned to OPERAND 2
 * OPERAND 1: the data type to assign to OPERAND 2
 * OPERAND 2: the first boolean variable, being a variable name
 * OPERAND 3: the second boolean variable, optionally being a variable name
 
 #### - nor (CMAS only)
-* performs logical operation OR on OPERAND 2 and 3; the value will be assigned to OPERAND 2
+* performs logical operation NOR on OPERAND 2 and 3; the value will be assigned to OPERAND 2
 * OPERAND 1: the data type to assign to OPERAND 2
 * OPERAND 2: the first boolean variable, being a variable name
 * OPERAND 3: the second boolean variable, optionally being a variable name
