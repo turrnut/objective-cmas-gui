@@ -32,7 +32,7 @@
 - (void)reg:(NSArray*)args withException:(SIMASException**)ex {
     SIMASProgram *program = [SIMASRuntime currentProgram];
     NSString *name = [args objectAtIndex:0];
-    if ([name characterAtIndex:0] == '$') { *ex = [SIMASException makeWithException:@"IllegalName" andReason:@"Names starting with '$' are reserved by the SIMAS runtime."]; return; }
+    if ((*ex = [SIMASRuntime validateName:name])) return;
     if ([program->functions objectForKey:name]) { *ex = [SIMASException makeWithException:@"DuplicateName" andReason:[NSString stringWithFormat:@"Function %@ already exists.", name]]; return; }
     self->argumentCount = (int)[[args objectAtIndex:1] intValue] < 0 ? 0 : (int)[[args objectAtIndex:1] intValue];
     self->name = [name copy];
@@ -50,9 +50,7 @@
         block = [block parent];
     }
     if (block) [(SIMASFunction*)block ret:args];
-    else {
-        [SIMASRuntime throwException:@"IllegalReturn" withReason:@"A return call was made outside of a function. Return calls MUST be made inside functions."];
-    }
+    else [SIMASRuntime throwException:@"IllegalReturn" withReason:@"A return call was made outside of a function. Return calls MUST be made inside functions."];
 }
 
 - (void)ret:(NSArray*)args {
@@ -88,7 +86,6 @@
 
 - (void)cleanUp {
     [self->arguments removeAllObjects];
-    self->returnTo = 0;
     [super cleanUp];
 }
 
@@ -102,41 +99,44 @@
 + (NSString*)identifier { return @"fun"; }
 
 + (BOOL)usesBlacklist { return NO; }
-
+- (SIMASBlock*)clone {
+    SIMASFunction *block = (SIMASFunction*)[super clone];
+    block->argumentCount = self->argumentCount;
+    block->name = [self->name copy];
+    return block;
+}
 + (void)jump:(NSArray*)args {
     NSString *name = [args objectAtIndex:0];
     SIMASProgram *program = [SIMASRuntime currentProgram];
-    SIMASFunction *function;
-    if (!(function = [program->functions objectForKey:name])) { [SIMASRuntime throwException:@"IllegalFunction" withReason:[NSString stringWithFormat:@"Function %@ does not exist.", name]]; return; }
-    if ([args count] != 1 + (function->argumentCount * 2)) {
-        [SIMASRuntime throwException:@"IllegalArgumentCount" withReason:[NSString stringWithFormat:@"An improper number of arguments was passed to call to function %@ (expected %d, recieved %d)", name, 1 + (function->argumentCount * 2), (int)[args count]]];
+    SIMASFunction *theFunc = nil;
+    SIMASFunction *function = nil;
+    if (!(theFunc = [program->functions objectForKey:name])) { [SIMASRuntime throwException:@"IllegalFunction" withReason:[NSString stringWithFormat:@"Function %@ does not exist.", name]]; return; }
+    if ([args count] != 1 + (theFunc->argumentCount * 2)) {
+        [SIMASRuntime throwException:@"IllegalArgumentCount" withReason:[NSString stringWithFormat:@"An improper number of arguments was passed to call to function %@ (expected %d, recieved %d)", name, 1 + (theFunc->argumentCount * 2), (int)[args count]]];
         return;
     }
+    // mmm this is sketch as fuck i dont like it I DONT LIKE IT I SAY
+    function = (SIMASFunction*)[theFunc recursivelyClone];
     NSMutableArray *newArgs = [NSMutableArray new];
     for (int i = 0; i < function->argumentCount; i++) {
         NSString *typeString = [[args objectAtIndex:i * 2 + 1] lowercaseString];
         NSString *nameString = [args objectAtIndex:i * 2 + 2];
+        SIMASVariable *newVar = [[SIMASVariable new] autorelease];
         if ([typeString isEqualToString:@"v"]) {
-            SIMASVariable *newVar = [SIMASVariable new];
             [newVar setData:[[[[SIMASVariable findVariable:nameString] data] copy] autorelease]];
             [newArgs addObject:newVar];
-            [newVar release];
         } else if ([typeString isEqualToString:@"p"]) {
             [newArgs addObject:[[SIMASVariable findVariable:nameString] makePointer]];
         } else {
-            if (![[SIMASRuntime runtime]->registeredTypes objectForKey:typeString]) { [SIMASRuntime throwException:@"NonexistentType" withReason:[NSString stringWithFormat:@"Type %@ does not exist, thus cannot be used to convert.", typeString]]; return; }
-            SIMASVariable *newVar = [SIMASVariable new];
+            if (![[SIMASRuntime runtime]->registeredTypes objectForKey:typeString]) { [newArgs release]; [SIMASRuntime throwException:@"NonexistentType" withReason:[NSString stringWithFormat:@"Type %@ does not exist, thus cannot be used to convert.", typeString]]; return; }
             [newVar setData:[[[SIMASRuntime runtime]->registeredTypes objectForKey:typeString] fromString:nameString]];
             [newArgs addObject:newVar];
-            [newVar release];
         }
     }
+    [function enter];
     [function->arguments setArray:newArgs];
-    for (int i = 0, count = (int)[newArgs count]; i < count; i++) {
-        [function addVariable:[function->arguments objectAtIndex:i] forName:[NSString stringWithFormat:@"$%d", i]];
-    }
+    for (int i = 0, count = (int)[newArgs count]; i < count; i++) [function addVariable:[function->arguments objectAtIndex:i] forName:[NSString stringWithFormat:@"$%d", i + 1]];
     [newArgs release];
-    [program->stack addObject:function];
     function->returnTo = program->programCounter;
     program->programCounter = (int)function->location.location;
 }

@@ -211,18 +211,36 @@ killTheTree:
 - (SIMASVariable*)getVar:(NSString *)name { return [self->variables objectForKey:name]; }
 - (void)deleteVariable:(NSString*)name { [self->variables removeObjectForKey:name]; }
 - (void)end { [self cleanUp]; }
-- (void)enter {
-    [[SIMASRuntime currentProgram]->stack addObject:self];
-    [self clearItems];
+- (void)enter { [[SIMASRuntime currentProgram]->stack addObject:self]; [self clearItems]; }
+- (SIMASBlock*)clone {
+    SIMASBlock *new = [[self class] new];
+    new->childNodes = [self->childNodes retain];
+    new->labels = [self->labels retain];
+    new->location = self->location;
+    new->isClone = YES;
+    new->parentNode = self->parentNode;
+    return new;
+}
+- (SIMASBlock*)recursivelyClone {
+    SIMASBlock *new = [self clone];
+    [new->childNodes release];
+    new->childNodes = [NSMutableDictionary new];
+    NSArray *childrenKeys = [self->childNodes allKeys], *children = [self->childNodes objectsForKeys:childrenKeys notFoundMarker:[NSNull null]];
+    for (int i = 0, count = (int)[children count]; i < count; i++) {
+        SIMASBlock *newChild = [[children objectAtIndex:i] recursivelyClone];
+        [new->childNodes setObject:newChild forKey:[childrenKeys objectAtIndex:i]];
+        newChild->parentNode = new;
+    }
+    return new;
 }
 - (void)clearItems { [self->variables removeAllObjects]; }
-- (void)cleanUp { [[SIMASRuntime currentProgram]->stack removeObject:self]; [self clearItems]; }
+- (void)cleanUp { [self removeFromStack]; [self clearItems]; if (self->isClone) [self release]; }
 - (SIMASBlock*)findNode:(int)pc { return [self->childNodes objectForKey:[NSNumber numberWithInt:pc]]; }
 - (NSNumber*)programCounterForLabel:(NSString*)label { return [self->labels objectForKey:label]; }
 - (SIMASBlock*)parent { return self->parentNode; }
 - (id)getStruct:(NSString*)name { return [self->instantiatedStructs objectForKey:name]; }
 - (void)preprocessLabels:(NSMutableArray*)instructions {
-    for (int i = ![[[self class] identifier] isEqualToString:@""]; i < self->location.length; i++) {
+    for (int i = ![[[self class] identifier] isEqualToString:@""]; i < self->location.length && ![[SIMASRuntime runtime] isExcepted]; i++) {
         NSAutoreleasePool *pool = [NSAutoreleasePool new];
         NSNumber *number = [NSNumber numberWithInt:(int)(self->location.location + i)];
         SIMASBlock *block = [self->childNodes objectForKey:number];
@@ -238,9 +256,23 @@ killTheTree:
             if ([self->labels objectForKey:name]) {
                 [SIMASRuntime throwException:@"DuplicateLabel" withReason:[NSString stringWithFormat:@"Label '%@' is already defined.", name] withInstruction:inst];
             }
+            SIMASException *ex = [SIMASRuntime validateName:name];
+            if (ex) {
+                ex->instruction = inst;
+                [SIMASRuntime throwException:ex];
+            }
             [self->labels setObject:[NSNumber numberWithInt:(int)(self->location.location + i)] forKey:name];
         }
         [pool release];
+    }
+}
+- (void)removeFromStack {
+    NSMutableArray *stack = [SIMASRuntime currentProgram]->stack;
+    for (int idx = (int)[stack count] - 1; idx >= 0; idx--) {
+        if ([stack objectAtIndex:idx] == self) {
+            [stack removeObjectAtIndex:idx];
+            return;
+        }
     }
 }
 - (void)dealloc {
@@ -884,6 +916,7 @@ id getStackFrame(NSArray* args) {
     return nil;
 }
 + (id)throwException:(SIMASException*)exception {
+    if (!exception) return nil;
     if (!exception->remark && !exception->instruction) [self throwException:exception->exception withReason:exception->reason];
     else if (exception->remark) [self throwException:exception->exception withReason:exception->reason withSnideRemark:exception->remark];
     else [self throwException:exception->exception withReason:exception->reason withInstruction:exception->instruction];

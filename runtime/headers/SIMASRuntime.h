@@ -187,6 +187,7 @@ typedef NS_ENUM(int, SIMASArgumentClassifier) {
     NSMutableDictionary *instantiatedStructs;
     NSRange location;
     SIMASBlock *parentNode; // ouuuuh SHIT is this a tree!?
+    BOOL isClone;
 }
 
 + (SIMASBlock*)processBlocksForRange:(NSRange)range inInstructions:(NSArray *)instructions exception:(SIMASException**)ex; // supply nil to the third arg
@@ -218,6 +219,10 @@ typedef NS_ENUM(int, SIMASArgumentClassifier) {
 - (void)end;
 - (void)clearItems;
 - (void)cleanUp; // called to clean up after execution of a block OR when a block is jumped out of
+- (SIMASBlock*)clone; // this returns a clone (strongly held, but autodeleted with cleanup)
+- (SIMASBlock*)recursivelyClone;
+- (void)addToStack;
+- (void)removeFromStack;
 @end
 
 @interface SIMASBlockGeneric : SIMASBlock

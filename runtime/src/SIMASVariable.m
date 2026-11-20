@@ -49,10 +49,10 @@
 
 + (NSMutableDictionary*)allowedConversions {
     NSMutableDictionary* thing = [[[NSThread currentThread] threadDictionary] objectForKey:@"conversions"];
-    if (!thing) [[[NSThread currentThread] threadDictionary] setObject:(thing = (void*)[NSMutableDictionary new]) forKey:@"conversions"];
+    if (!thing) [[[NSThread currentThread] threadDictionary] setObject:(thing = [NSMutableDictionary new]) forKey:@"conversions"];
     NSMutableDictionary* conversions = [thing objectForKey:[self class]];
     if (conversions == nil) {
-        conversions = [NSMutableDictionary new]; // leaks technically but- oh wait no, the runtime now destroys it with it because threading :D
+        conversions = [NSMutableDictionary new];
         [thing setObject:conversions forKey:(id<NSCopying>)self];
         [conversions release];
     }
