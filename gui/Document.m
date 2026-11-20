@@ -154,11 +154,11 @@ relapse:
     [self->runtimeConditional lock];
     while (!self->isRunning) [self->runtimeConditional wait];
     if (self->fileContents) {
-        //NS_DURING
+        NS_DURING
             [[self->runner retain] invoke];
-        //NS_HANDLER
-            //[self performSelectorOnMainThread:@selector(ohGodSomethingDied) withObject:nil waitUntilDone:YES];
-        //NS_ENDHANDLER
+        NS_HANDLER
+            [self performSelectorOnMainThread:@selector(ohGodSomethingDied) withObject:nil waitUntilDone:YES];
+        NS_ENDHANDLER
         [self->runner release];
         self->runner = nil;
     }

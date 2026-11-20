@@ -273,7 +273,7 @@ otherwise put the name of the type, and then the data for that variable as a con
 #### - ret
 * breaks out of a function
 * Important: you MUST call this to break a function, else it will repeat endlessly.
-* OPERAND 1: Optional, the type of data being returned. V for a pre-existing variable, L is for a pre-existing list, B for a boolean constant, N for a NUM constant, and S for a string constant.
+* OPERAND 1: Optional, the type of data being returned. V for a pre-existing variable, L is for a pre-existing list, otherwise put the name of the type, and then the data for that variable as a constant.
 * OPERAND 2: Optional, but required if OPERAND 1 is present, and is the data being returned. This is shown in a $\[function name\] variable.
 
 ### Misc instructions
