@@ -890,7 +890,7 @@ id getStackFrame(NSArray* args) {
     return nil;
 }
 + (SIMASException*)validateName:(NSString*)name {
-    if ([name characterAtIndex:0] == '$' || [[SIMASRuntime runtime] isExcepted]) return [SIMASException makeWithException:@"IllegalName" andReason:@"Names starting with '$' are reserved by the SIMAS runtime."];
+    if ([name characterAtIndex:0] == '$') return [SIMASException makeWithException:@"IllegalName" andReason:@"Names starting with '$' are reserved by the SIMAS runtime."];
     if ([[SIMASRuntime runtime]->registeredTypes objectForKey:[name lowercaseString]]) return [SIMASException makeWithException:@"IllegalName" andReason:@"Names cannot be the same as a type."];
     if ([[name lowercaseString] isEqualToString:@"true"] || [[name lowercaseString] isEqualToString:@"false"]) return [SIMASException makeWithException:@"IllegalName" andReason:@"Names cannot be \"true\" or \"false\"." withRemark:@"Why on god's green earth does this have to be a rule? 'Cause fragile parsing rules :)"];
     if ([[name lowercaseString] isEqualToString:@"in"]) return [SIMASRuntime throwException:@"IllegalName" withReason:@"The \"in\" name is reserved by SIMAS for input."];

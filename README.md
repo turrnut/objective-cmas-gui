@@ -61,4 +61,5 @@ and MUST be kept in mind if attempting to write cross-compatible programs.
 * Label Scoping - Just like variables, labels are also scoped. Cannot jump to a label inside of an inner scope, but can jump to one in an outer scope.
 * Structures - Use structures to organise your variables! yum. Structure members can be accessed with `instancename->member`, and instances can be made with the `new` instruction.
 # Links
-For instructions & datatypes, check <a href="DOCS.md">here.</a>
+For instructions & datatypes, check <a href="DOCS.md">here.</a><br>
+For a comprehensive list of SIMAS implementations, check <a href="https://github.com/turrnutorg/SIMAS">here.</a>
