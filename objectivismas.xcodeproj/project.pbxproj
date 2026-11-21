@@ -31,6 +31,8 @@
 		D9E9953F30AD287B00CB385F /* DOCS.md in Resources */ = {isa = PBXBuildFile; fileRef = D9264C1C304F97F900D503F0 /* DOCS.md */; };
 		D9E9954030AD287B00CB385F /* README.md in Resources */ = {isa = PBXBuildFile; fileRef = D9264C1D304F97F900D503F0 /* README.md */; };
 		D9E9954130AD287B00CB385F /* LIBRARIES.md in Resources */ = {isa = PBXBuildFile; fileRef = D9264C2330518C7800D503F0 /* LIBRARIES.md */; };
+		D9E9954930B15C7100CB385F /* SIMASBlock.h in Headers */ = {isa = PBXBuildFile; fileRef = D9E9954730B15C7100CB385F /* SIMASBlock.h */; };
+		D9E9954A30B15C7100CB385F /* SIMASBlock.m in Sources */ = {isa = PBXBuildFile; fileRef = D9E9954830B15C7100CB385F /* SIMASBlock.m */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -76,6 +78,8 @@
 		D9E9952F30A8102000CB385F /* main.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = main.m; sourceTree = "<group>"; };
 		D9E9953130A8102000CB385F /* Objective_CMAS_GUI.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Objective_CMAS_GUI.entitlements; sourceTree = "<group>"; };
 		D9E9953D30A8F96C00CB385F /* icon.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = icon.png; sourceTree = "<group>"; };
+		D9E9954730B15C7100CB385F /* SIMASBlock.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = SIMASBlock.h; sourceTree = "<group>"; };
+		D9E9954830B15C7100CB385F /* SIMASBlock.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = SIMASBlock.m; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -153,6 +157,7 @@
 				D9264BE8304D534C00D503F0 /* SIMASVariable.h */,
 				D9264BF1304D594800D503F0 /* SIMASRuntime.h */,
 				D9264BF4304E05FA00D503F0 /* SIMASFunction.h */,
+				D9E9954730B15C7100CB385F /* SIMASBlock.h */,
 			);
 			path = headers;
 			sourceTree = "<group>";
@@ -163,6 +168,7 @@
 				D9264BE9304D534C00D503F0 /* SIMASVariable.m */,
 				D9264BF2304D594800D503F0 /* SIMASRuntime.m */,
 				D9264BF5304E05FA00D503F0 /* SIMASFunction.m */,
+				D9E9954830B15C7100CB385F /* SIMASBlock.m */,
 			);
 			path = src;
 			sourceTree = "<group>";
@@ -222,6 +228,7 @@
 			files = (
 				D9264C3A3051916200D503F0 /* SIMASFunction.h in Headers */,
 				D9264C383051916200D503F0 /* SIMASRuntime.h in Headers */,
+				D9E9954930B15C7100CB385F /* SIMASBlock.h in Headers */,
 				D9264C363051916200D503F0 /* SIMASVariable.h in Headers */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -356,6 +363,7 @@
 				D9264C3B3051916200D503F0 /* SIMASFunction.m in Sources */,
 				D9264C393051916200D503F0 /* SIMASRuntime.m in Sources */,
 				D9264C373051916200D503F0 /* SIMASVariable.m in Sources */,
+				D9E9954A30B15C7100CB385F /* SIMASBlock.m in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

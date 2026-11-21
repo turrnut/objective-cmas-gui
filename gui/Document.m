@@ -30,7 +30,8 @@
 }
 
 - (void)printOutput:(NSString*)str {
-    self.output.string = [self.output.string stringByAppendingString:str];
+    NSString *strink = (self.output.string = [self.output.string stringByAppendingString:str]);
+    if (strink.length > 1000) self.output.string = [strink substringFromIndex:(strink.length - 1000)];
     [self.output scrollToEndOfDocument:nil];
 }
 

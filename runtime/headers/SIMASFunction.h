@@ -16,6 +16,7 @@
 
 #import <Foundation/Foundation.h>
 #import "SIMASRuntime.h"
+#import "SIMASBlock.h"
 
 @interface SIMASFunction : SIMASBlock {
 @public

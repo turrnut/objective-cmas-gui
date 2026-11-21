@@ -276,13 +276,19 @@ SIMASFUNC(pointationNotation) {
     [[[SIMASRuntime currentProgram]->stack lastObject] addVariable:pointer forName:name];
 }
 
-NSNumber *doJump(NSString* name) {
+NSNumber *doJump(NSString* name) { // please note that this automatically unwinds the stack
     NSNumber *jmp = nil;
-    SIMASBlock *block = [[SIMASRuntime currentProgram]->stack lastObject];
+    NSAutoreleasePool *pool = [NSAutoreleasePool new];
+    SIMASBlock *block = [[[[SIMASRuntime currentProgram]->stack lastObject] retain] autorelease];
     do {
         jmp = [block programCounterForLabel:name];
-        if (!jmp) [block cleanUp];
-    } while ((block = [block parent]) && !jmp);
+        if (!jmp)
+            [block cleanUp];
+    } while (!jmp && ((![[[block class] identifier] isEqualToString:@""]) && ([[(block = [block parent]) retain] autorelease] || [[(block = [[SIMASRuntime currentProgram]->stack lastObject]) retain] autorelease])));
+    [pool release];
+    if (jmp && [[[block class] identifier] isEqualToString:@""]) {
+        while ([[SIMASRuntime currentProgram]->stack count] > 1) [[[SIMASRuntime currentProgram]->stack lastObject] cleanUp];
+    }
     return jmp;
 }
 
